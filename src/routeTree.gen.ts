@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as UserAccessRouteImport } from './routes/user-access'
 import { Route as StaffRouteImport } from './routes/staff'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ReaderStatusRouteImport } from './routes/reader-status'
 import { Route as ReaderHistoryRouteImport } from './routes/reader-history'
 import { Route as PricingRouteImport } from './routes/pricing'
@@ -62,6 +63,11 @@ const StaffRoute = StaffRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReaderStatusRoute = ReaderStatusRouteImport.update({
@@ -262,6 +268,7 @@ export interface FileRoutesByFullPath {
   '/pricing': typeof PricingRoute
   '/reader-history': typeof ReaderHistoryRoute
   '/reader-status': typeof ReaderStatusRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/staff': typeof StaffRouteWithChildren
   '/user-access': typeof UserAccessRoute
@@ -299,6 +306,7 @@ export interface FileRoutesByTo {
   '/pricing': typeof PricingRoute
   '/reader-history': typeof ReaderHistoryRoute
   '/reader-status': typeof ReaderStatusRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/user-access': typeof UserAccessRoute
   '/branches/$id': typeof BranchesIdRoute
@@ -340,6 +348,7 @@ export interface FileRoutesById {
   '/pricing': typeof PricingRoute
   '/reader-history': typeof ReaderHistoryRoute
   '/reader-status': typeof ReaderStatusRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/staff': typeof StaffRouteWithChildren
   '/user-access': typeof UserAccessRoute
@@ -383,6 +392,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/reader-history'
     | '/reader-status'
+    | '/reset-password'
     | '/settings'
     | '/staff'
     | '/user-access'
@@ -420,6 +430,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/reader-history'
     | '/reader-status'
+    | '/reset-password'
     | '/settings'
     | '/user-access'
     | '/branches/$id'
@@ -460,6 +471,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/reader-history'
     | '/reader-status'
+    | '/reset-password'
     | '/settings'
     | '/staff'
     | '/user-access'
@@ -502,6 +514,7 @@ export interface RootRouteChildren {
   PricingRoute: typeof PricingRoute
   ReaderHistoryRoute: typeof ReaderHistoryRoute
   ReaderStatusRoute: typeof ReaderStatusRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRoute
   StaffRoute: typeof StaffRouteWithChildren
   UserAccessRoute: typeof UserAccessRoute
@@ -528,6 +541,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reader-status': {
@@ -895,6 +915,7 @@ const rootRouteChildren: RootRouteChildren = {
   PricingRoute: PricingRoute,
   ReaderHistoryRoute: ReaderHistoryRoute,
   ReaderStatusRoute: ReaderStatusRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRoute,
   StaffRoute: StaffRouteWithChildren,
   UserAccessRoute: UserAccessRoute,

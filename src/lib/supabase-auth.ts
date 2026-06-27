@@ -135,10 +135,32 @@ export async function signOutSupabase() {
 }
 
 export async function requestPasswordReset(email: string) {
-  await authRequest("recover", {
+  const redirectTo =
+    typeof window === "undefined" ? undefined : `${window.location.origin}/reset-password`;
+  const path = redirectTo ? `recover?redirect_to=${encodeURIComponent(redirectTo)}` : "recover";
+  await authRequest(path, {
     method: "POST",
     body: JSON.stringify({ email }),
   });
+}
+
+export async function updateRecoveredPassword(password: string) {
+  if (password.length < 8) throw new Error("Password must contain at least 8 characters.");
+  if (typeof window === "undefined") throw new Error("Open the reset link in your browser.");
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const accessToken = hash.get("access_token");
+  if (!accessToken || hash.get("type") !== "recovery") {
+    throw new Error("This reset link is invalid or expired. Request a new email.");
+  }
+  await authRequest(
+    "user",
+    {
+      method: "PUT",
+      body: JSON.stringify({ password }),
+    },
+    accessToken,
+  );
+  window.history.replaceState({}, "", "/login");
 }
 
 async function refreshSupabaseAuth(refreshToken: string) {
