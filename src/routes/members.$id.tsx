@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   FileText,
   Flame,
@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Snowflake,
   Sun,
+  Trash2,
   Upload,
 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -23,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { colorFromName, daysBetween, dmy, initials, inr } from "@/lib/format";
+import { deleteMemberFromSupabase } from "@/lib/supabase-data";
 import { useApp, type Payment, type Status } from "@/store/app";
 
 export const Route = createFileRoute("/members/$id")({
@@ -40,7 +42,9 @@ function Detail() {
   const { id } = Route.useParams();
   const members = useApp((state) => state.members);
   const allPayments = useApp((state) => state.payments);
+  const staff = useApp((state) => state.staff);
   const updateMember = useApp((state) => state.updateMember);
+  const deleteMember = useApp((state) => state.deleteMember);
   const renewMember = useApp((state) => state.renewMember);
   const toggleMemberFreeze = useApp((state) => state.toggleMemberFreeze);
   const setWorkoutPlan = useApp((state) => state.setWorkoutPlan);
@@ -63,6 +67,7 @@ function Detail() {
     amount: 11999,
     mode: "UPI" as Payment["mode"],
   });
+  const navigate = useNavigate();
   const documentInput = useRef<HTMLInputElement>(null);
   const member = members.find((item) => item.id === id);
   const payments = allPayments.filter((payment) => payment.memberId === id);
@@ -99,6 +104,20 @@ function Detail() {
     });
     setRenewOpen(true);
   };
+
+  const removeMember = async () => {
+    if (
+      !confirm(
+        `Delete ${member.name}? This removes the member, payments, and attendance from this app.`,
+      )
+    )
+      return;
+    deleteMember(member.id);
+    await deleteMemberFromSupabase(member.id);
+    toast.success("Member deleted");
+    navigate({ to: "/members" });
+  };
+
   const updateRenewal = (patch: Partial<typeof renewal>) => {
     const next = { ...renewal, ...patch };
     if (patch.plan || patch.months)
@@ -188,12 +207,31 @@ function Detail() {
                 className="flex justify-between border-b border-border/50 py-2 text-sm last:border-0"
               >
                 <div>
-                  <div>{payment.plan}</div>
+                  <div>
+                    {payment.plan}
+                    {payment.category === "Personal Training" && (
+                      <span className="ml-2 status-badge status-expiring">PT</span>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     {dmy(payment.date)} - {payment.mode}
                   </div>
+                  {payment.trainerId && (
+                    <div className="mt-1 text-[10px] text-primary">
+                      Trainer:{" "}
+                      {staff.find((person) => person.id === payment.trainerId)?.name ?? "Unknown"} -{" "}
+                      {payment.commissionPercent ?? 40}% commission
+                    </div>
+                  )}
                 </div>
-                <div className="font-semibold text-primary">{inr(payment.amount)}</div>
+                <div
+                  className={`font-semibold ${
+                    payment.type === "refund" ? "text-amber-400" : "text-primary"
+                  }`}
+                >
+                  {payment.type === "refund" ? "-" : ""}
+                  {inr(payment.amount)}
+                </div>
               </div>
             ))
           ))}
@@ -285,7 +323,7 @@ function Detail() {
         )}
       </Card>
 
-      <div className="mb-4 grid gap-2 sm:grid-cols-3">
+      <div className="mb-4 grid gap-2 sm:grid-cols-4">
         <button onClick={openRenew} className="btn-primary justify-center text-sm">
           <RefreshCw className="h-4 w-4" />
           Renew
@@ -307,6 +345,13 @@ function Detail() {
             <Snowflake className="h-4 w-4" />
           )}
           {member.status === "frozen" ? "Unfreeze" : "Freeze"}
+        </button>
+        <button
+          onClick={() => void removeMember()}
+          className="subtle-button justify-center text-sm text-destructive"
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete
         </button>
       </div>
 

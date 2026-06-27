@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+﻿import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Dumbbell } from "lucide-react";
 import { useEffect } from "react";
 import { useApp } from "@/store/app";
@@ -11,13 +11,15 @@ export const Route = createFileRoute("/")({
 function Splash() {
   const navigate = useNavigate();
   const auth = useApp((s) => s.auth);
+  const authReady = useApp((s) => s.authReady);
   useEffect(() => {
     const t = setTimeout(() => {
+      if (!authReady) return;
       if (auth) navigate({ to: auth.role === "member" ? "/member/home" : "/dashboard" });
       else navigate({ to: "/login" });
     }, 2200);
     return () => clearTimeout(t);
-  }, [auth, navigate]);
+  }, [auth, authReady, navigate]);
 
   return (
     <div className="min-h-screen bg-background grid place-items-center px-6">
@@ -33,3 +35,5 @@ function Splash() {
     </div>
   );
 }
+
+

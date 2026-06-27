@@ -17,7 +17,6 @@ function Dues() {
   );
   const addPayment = useApp((state) => state.addPayment);
   const updatePayment = useApp((state) => state.updatePayment);
-  const updateMember = useApp((state) => state.updateMember);
   const dues = members
     .map((member) => ({ member, amount: Math.max(0, member.totalAmount - member.amountPaid) }))
     .filter((item) => item.amount > 0);
@@ -58,7 +57,6 @@ function Dues() {
                 onClick={() => {
                   if (pending) {
                     updatePayment(pending.id, { status: "Paid", date: new Date().toISOString() });
-                    updateMember(member.id, { amountPaid: member.amountPaid + pending.amount });
                   } else {
                     addPayment({
                       memberId: member.id,

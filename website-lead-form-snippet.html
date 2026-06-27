@@ -1,0 +1,74 @@
+﻿<script>
+(() => {
+  const SUPABASE_URL = "https://qvrebewjlthikhzxwpcg.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_RiKCU541R0b2uFu4RAS2-Q_3bbTx10m";
+
+  function getValue(form, names) {
+    for (const name of names) {
+      const field = form.querySelector(`[name="${name}"], #${name}`);
+      if (field && field.value) return field.value.trim();
+    }
+    return "";
+  }
+
+  async function submitLead(form) {
+    const params = new URLSearchParams(window.location.search);
+    const payload = {
+      p_name: getValue(form, ["name", "full_name", "fullname"]),
+      p_phone: getValue(form, ["phone", "mobile", "number", "contact"]),
+      p_enquiry: getValue(form, ["enquiry", "goal", "service", "message"]) || "Website Enquiry",
+      p_notes: getValue(form, ["message", "notes", "comment"]),
+      p_branch_id: "b1",
+      p_page_url: window.location.href,
+      p_utm_source: params.get("utm_source"),
+      p_utm_medium: params.get("utm_medium"),
+      p_utm_campaign: params.get("utm_campaign"),
+    };
+
+    if (!payload.p_name || !payload.p_phone) {
+      throw new Error("Name and phone are required");
+    }
+
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/submit_website_lead`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) throw new Error(await response.text());
+    return response.json();
+  }
+
+  document.addEventListener("submit", async (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    if (!form.matches("[data-fitfyt-lead-form]")) return;
+
+    event.preventDefault();
+    const button = form.querySelector('button[type="submit"], input[type="submit"]');
+    const oldText = button?.textContent;
+    if (button) {
+      button.disabled = true;
+      if (button.textContent) button.textContent = "Submitting...";
+    }
+
+    try {
+      await submitLead(form);
+      form.reset();
+      alert("Thank you! Our team will contact you soon.");
+    } catch (error) {
+      console.error(error);
+      alert("Could not submit enquiry. Please call us or try again.");
+    } finally {
+      if (button) {
+        button.disabled = false;
+        if (oldText) button.textContent = oldText;
+      }
+    }
+  });
+})();
+</script>

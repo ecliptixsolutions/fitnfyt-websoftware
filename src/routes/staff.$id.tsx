@@ -1,10 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { LogIn, LogOut, Save, UserCheck } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { LogIn, LogOut, Save, Trash2, UserCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AppShell, Card } from "@/components/layout/AppShell";
 import { colorFromName, dmy, initials, inr } from "@/lib/format";
-import { useApp, type Staff } from "@/store/app";
+import { deleteStaffFromSupabase } from "@/lib/supabase-data";
+import { getTrainerCommissionEntries, useApp, type Staff } from "@/store/app";
 
 export const Route = createFileRoute("/staff/$id")({
   head: () => ({ meta: [{ title: "Staff Profile - Fit & Fyt GymOS" }] }),
@@ -26,10 +27,14 @@ function StaffDetail() {
   const staff = useApp((state) => state.staff);
   const members = useApp((state) => state.members);
   const leads = useApp((state) => state.leads);
+  const payments = useApp((state) => state.payments);
+  const payroll = useApp((state) => state.payroll ?? []);
   const attendance = useApp((state) => state.attendance ?? []);
   const updateStaff = useApp((state) => state.updateStaff);
+  const deleteStaff = useApp((state) => state.deleteStaff);
   const punchIn = useApp((state) => state.punchIn);
   const punchOut = useApp((state) => state.punchOut);
+  const navigate = useNavigate();
   const person = staff.find((item) => item.id === id);
   const [edit, setEdit] = useState(false);
   if (!person)
@@ -38,26 +43,55 @@ function StaffDetail() {
         <Card>Staff member not found</Card>
       </AppShell>
     );
+
+  const removeStaff = async () => {
+    if (
+      !confirm(
+        `Delete ${person.name}? This removes staff attendance and unassigns related records.`,
+      )
+    )
+      return;
+    deleteStaff(person.id);
+    await deleteStaffFromSupabase(person.id);
+    toast.success("Staff deleted");
+    navigate({ to: "/staff" });
+  };
+
   const records = attendance
     .filter((record) => record.subjectType === "staff" && record.subjectId === person.id)
     .sort((a, b) => b.punchIn.localeCompare(a.punchIn));
   const today = new Date().toISOString().slice(0, 10);
   const todayRecord = records.find((record) => record.date === today);
+  const commissions = getTrainerCommissionEntries(payments, members, staff, payroll).filter(
+    (entry) => entry.staffId === person.id,
+  );
+  const pendingCommission = commissions
+    .filter((entry) => entry.payoutStatus === "Pending")
+    .reduce((sum, entry) => sum + entry.commissionAmount, 0);
+  const paidCommission = commissions
+    .filter((entry) => entry.payoutStatus === "Paid")
+    .reduce((sum, entry) => sum + entry.commissionAmount, 0);
   return (
     <AppShell
       title="Staff profile"
       description={`${person.role} - joined ${dmy(person.joined)}`}
       actions={
-        <button
-          onClick={() => {
-            updateStaff(person.id, { active: !person.active });
-            toast.success(person.active ? "Staff deactivated" : "Staff activated");
-          }}
-          className="subtle-button"
-        >
-          <UserCheck className="h-4 w-4" />
-          {person.active ? "Deactivate" : "Activate"}
-        </button>
+        <>
+          <button
+            onClick={() => {
+              updateStaff(person.id, { active: !person.active });
+              toast.success(person.active ? "Staff deactivated" : "Staff activated");
+            }}
+            className="subtle-button"
+          >
+            <UserCheck className="h-4 w-4" />
+            {person.active ? "Deactivate" : "Activate"}
+          </button>
+          <button onClick={() => void removeStaff()} className="subtle-button text-destructive">
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </button>
+        </>
       }
     >
       <div className="mb-5 flex flex-col items-center text-center">
@@ -69,7 +103,7 @@ function StaffDetail() {
         <h2 className="mt-3 text-xl font-bold">{person.name}</h2>
         <div className="text-xs text-muted-foreground">{person.phone}</div>
       </div>
-      <div className="mb-5 grid gap-3 sm:grid-cols-4">
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <Card>
           <div className="section-label">Salary</div>
           <div className="mt-2 font-bold">{inr(person.salary)}</div>
@@ -87,6 +121,14 @@ function StaffDetail() {
           <div className="mt-2 font-bold">
             {leads.filter((lead) => lead.assignedStaffId === person.id).length}
           </div>
+        </Card>
+        <Card>
+          <div className="section-label">Pending PT</div>
+          <div className="mt-2 font-bold text-primary">{inr(pendingCommission)}</div>
+        </Card>
+        <Card>
+          <div className="section-label">Paid PT</div>
+          <div className="mt-2 font-bold text-emerald-400">{inr(paidCommission)}</div>
         </Card>
       </div>
       <Card className="mb-5">
@@ -150,6 +192,64 @@ function StaffDetail() {
           )}
         </div>
       </Card>
+      {person.role === "Trainer" && (
+        <Card className="mb-5 !p-0 overflow-hidden">
+          <div className="px-5 py-4">
+            <h2 className="text-sm font-bold">Personal Training commission</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Auto-calculated from PT payments assigned to this trainer.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th>Package</th>
+                  <th>Amount</th>
+                  <th>Commission</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {commissions.map((entry) => (
+                  <tr key={entry.id}>
+                    <td>{entry.memberName}</td>
+                    <td>
+                      <div>{entry.packageName}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {dmy(entry.paymentDate)}
+                      </div>
+                    </td>
+                    <td>{inr(entry.netAmount)}</td>
+                    <td className="font-bold text-primary">
+                      {entry.commissionPercent}% - {inr(entry.commissionAmount)}
+                    </td>
+                    <td>
+                      <span
+                        className={`status-badge ${
+                          entry.payoutStatus === "Paid"
+                            ? "status-active"
+                            : entry.payoutStatus === "Refunded"
+                              ? "status-inactive"
+                              : "status-expiring"
+                        }`}
+                      >
+                        {entry.payoutStatus}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!commissions.length && (
+              <div className="p-6 text-center text-sm text-muted-foreground">
+                No PT commission assigned yet.
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
       <Card>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-bold">Profile and assignments</h2>

@@ -5,6 +5,7 @@ import {
   CalendarCheck,
   ChevronRight,
   CircleDollarSign,
+  Clock3,
   Cpu,
   Crown,
   Dumbbell,
@@ -15,13 +16,13 @@ import {
   Search,
   Settings,
   Sparkles,
-  UserCog,
   UserRound,
   Users,
   X,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { initials } from "@/lib/format";
+import { signOutSupabase } from "@/lib/supabase-auth";
 import { useApp } from "@/store/app";
 
 const navItems = [
@@ -31,14 +32,46 @@ const navItems = [
   { to: "/attendance", label: "Attendance", icon: CalendarCheck },
   { to: "/finance", label: "Finance", icon: CircleDollarSign },
   { to: "/leads", label: "Leads", icon: Sparkles },
-  { to: "/staff", label: "Staff", icon: UserCog },
   { to: "/messages", label: "Messages", icon: MessageCircle },
   { to: "/branches", label: "Branches", icon: Building2 },
   { to: "/hardware", label: "Biometric", icon: Cpu },
+  { to: "/reader-status", label: "Reader Status", icon: Clock3 },
+  { to: "/enrollment", label: "Enrollment", icon: UserRound },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 const mobileItems = navItems.slice(0, 4);
+
+function canUsePath(auth: { role: string | null; permissions?: string[] } | null, path: string) {
+  if (!auth) return false;
+  if (auth.role === "super" || auth.role === "owner" || auth.permissions?.includes("*"))
+    return true;
+  if (auth.role === "member") return path.startsWith("/member");
+  const staffAllowed = [
+    "/dashboard",
+    "/members",
+    "/attendance",
+    "/leads",
+    "/staff",
+    "/messages",
+    "/hardware",
+    "/reader-status",
+    "/reader-history",
+    "/enrollment",
+  ];
+  return (
+    staffAllowed.some((allowed) => path === allowed || path.startsWith(`${allowed}/`)) ||
+    Boolean(auth.permissions?.some((permission) => path.startsWith(`/${permission}`)))
+  );
+}
+
+function roleLabel(role: string | null | undefined) {
+  if (role === "super") return "Super Admin";
+  if (role === "owner") return "Owner";
+  if (role === "staff") return "Staff";
+  if (role === "member") return "Member";
+  return "User";
+}
 
 export function AppShell({
   children,
@@ -52,10 +85,13 @@ export function AppShell({
   actions?: ReactNode;
 }) {
   const auth = useApp((state) => state.auth);
+  const authReady = useApp((state) => state.authReady);
   const logout = useApp((state) => state.logout);
   const members = useApp((state) => state.members);
   const leads = useApp((state) => state.leads);
   const payments = useApp((state) => state.payments);
+  const branches = useApp((state) => state.branches);
+  const currentBranch = useApp((state) => state.currentBranch);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [drawer, setDrawer] = useState(false);
@@ -66,62 +102,92 @@ export function AppShell({
 
   useEffect(() => setReady(true), []);
   useEffect(() => {
-    if (ready && !auth) navigate({ to: "/login", replace: true });
-  }, [auth, navigate, ready]);
+    if (ready && authReady && !auth) navigate({ to: "/login", replace: true });
+    if (ready && authReady && auth?.role === "member")
+      navigate({ to: "/member/home", replace: true });
+  }, [auth, authReady, navigate, ready]);
 
-  if (!ready || !auth) return <AppLoading />;
-
-  const onLogout = () => {
+  const onLogout = async () => {
+    await signOutSupabase();
     logout();
     navigate({ to: "/login" });
   };
   const normalizedSearch = search.trim().toLowerCase();
-  const memberResults = normalizedSearch
-    ? members
+  const { memberResults, leadResults, planResults } = useMemo(() => {
+    if (!normalizedSearch) {
+      return { memberResults: [], leadResults: [], planResults: [] };
+    }
+
+    return {
+      memberResults: members
         .filter((member) =>
           `${member.name} ${member.phone} ${member.email ?? ""} ${member.plan}`
             .toLowerCase()
             .includes(normalizedSearch),
         )
-        .slice(0, 4)
-    : [];
-  const leadResults = normalizedSearch
-    ? leads
+        .slice(0, 4),
+      leadResults: leads
         .filter((lead) =>
           `${lead.name} ${lead.phone} ${lead.enquiry}`.toLowerCase().includes(normalizedSearch),
         )
-        .slice(0, 2)
-    : [];
-  const planResults = normalizedSearch
-    ? [...new Set(members.map((member) => member.plan))]
+        .slice(0, 2),
+      planResults: [...new Set(members.map((member) => member.plan))]
         .filter((plan) => plan.toLowerCase().includes(normalizedSearch))
-        .slice(0, 2)
-    : [];
-  const notificationCount =
-    members.filter((member) => member.status === "expiring").length +
-    payments.filter((payment) => payment.status === "Pending").length +
-    leads.filter((lead) => lead.status === "New").length;
+        .slice(0, 2),
+    };
+  }, [leads, members, normalizedSearch]);
+  const notificationCount = useMemo(
+    () =>
+      members.filter((member) => member.status === "expiring").length +
+      payments.filter((payment) => payment.status === "Pending").length +
+      leads.filter((lead) => lead.status === "New").length,
+    [leads, members, payments],
+  );
+
+  if (!ready || !authReady || !auth) return <AppLoading />;
+
+  const activeBranch = branches.find((branch) => branch.id === (auth.branchId ?? currentBranch));
+  const branchLabel = activeBranch?.name ?? "HQ Branch";
+  const allowedHere = canUsePath(auth, pathname);
+  if (!allowedHere) {
+    return (
+      <div className="min-h-screen bg-background px-6 py-10">
+        <div className="mx-auto max-w-md card-surface p-6 text-center">
+          <h1 className="text-xl font-black">Access denied</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Your account does not have permission to open this section.
+          </p>
+          <button className="btn-primary mt-5" onClick={() => navigate({ to: "/dashboard" })}>
+            Go to dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const renderNav = (compact: boolean) => (
     <nav className="space-y-1">
-      {navItems.map((item) => {
-        const Icon = item.icon;
-        const active =
-          pathname === item.to || (item.to !== "/dashboard" && pathname.startsWith(`${item.to}/`));
-        return (
-          <Link
-            key={item.to}
-            to={item.to}
-            onClick={() => setDrawer(false)}
-            title={compact ? item.label : undefined}
-            className={`sidebar-link ${compact ? "justify-center" : ""} ${active ? "sidebar-link-active" : ""}`}
-          >
-            <Icon className="h-4 w-4 shrink-0" />
-            {!compact && <span>{item.label}</span>}
-            {active && !compact && <ChevronRight className="ml-auto h-3.5 w-3.5" />}
-          </Link>
-        );
-      })}
+      {navItems
+        .filter((item) => canUsePath(auth, item.to))
+        .map((item) => {
+          const Icon = item.icon;
+          const active =
+            pathname === item.to ||
+            (item.to !== "/dashboard" && pathname.startsWith(`${item.to}/`));
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              onClick={() => setDrawer(false)}
+              title={compact ? item.label : undefined}
+              className={`sidebar-link ${compact ? "justify-center" : ""} ${active ? "sidebar-link-active" : ""}`}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              {!compact && <span>{item.label}</span>}
+              {active && !compact && <ChevronRight className="ml-auto h-3.5 w-3.5" />}
+            </Link>
+          );
+        })}
     </nav>
   );
 
@@ -139,7 +205,7 @@ export function AppShell({
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold">{auth.name}</div>
                 <div className="truncate text-xs capitalize text-muted-foreground">
-                  {auth.role} - HQ Branch
+                  {roleLabel(auth.role)} - {branchLabel}
                 </div>
               </div>
             )}
@@ -156,7 +222,7 @@ export function AppShell({
       </aside>
 
       <div className={`transition-[padding] ${collapsed ? "lg:pl-20" : "lg:pl-64"}`}>
-        <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
+        <header className="sticky top-0 z-30 border-b border-border bg-background">
           <div className="flex h-16 items-center gap-3 px-4 lg:px-6">
             <button
               onClick={() => {
@@ -245,7 +311,7 @@ export function AppShell({
                   <div className="hidden text-right sm:block">
                     <div className="text-xs font-semibold">{auth.name}</div>
                     <div className="text-[11px] capitalize text-muted-foreground">
-                      {auth.role} - HQ Branch
+                      {roleLabel(auth.role)} - {branchLabel}
                     </div>
                   </div>
                   <Avatar name={auth.name} />

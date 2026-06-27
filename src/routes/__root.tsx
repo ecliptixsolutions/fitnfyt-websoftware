@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+﻿import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "sonner";
+import { SupabaseBridge } from "@/components/SupabaseBridge";
 
 function NotFoundComponent() {
   return (
@@ -56,19 +57,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: "Fit Force Gym — Gym Management" },
+      { title: "Fit Force Gym â€” Gym Management" },
       { name: "description", content: "Complete gym management platform for Indian gym owners." },
       { name: "theme-color", content: "#0c0909" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "apple-mobile-web-app-title", content: "Fit Force" },
-      { property: "og:title", content: "Fit Force Gym — Gym Management" },
+      { property: "og:title", content: "Fit Force Gym â€” Gym Management" },
       {
         property: "og:description",
         content: "Complete gym management platform for Indian gym owners.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:title", content: "Fit Force Gym — Gym Management" },
+      { name: "twitter:title", content: "Fit Force Gym â€” Gym Management" },
       {
         name: "twitter:description",
         content: "Complete gym management platform for Indian gym owners.",
@@ -121,8 +122,10 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
+      <SupabaseBridge />
       <Outlet />
       <Toaster theme="dark" position="top-center" richColors />
     </QueryClientProvider>
   );
 }
+

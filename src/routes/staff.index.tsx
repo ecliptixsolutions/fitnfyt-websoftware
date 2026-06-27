@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { IndianRupee, Plus, Search, Users } from "lucide-react";
+import { IndianRupee, Plus, Search, Trash2, Users } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { AppShell, Card } from "@/components/layout/AppShell";
 import { colorFromName, dmy, initials } from "@/lib/format";
+import { deleteStaffFromSupabase } from "@/lib/supabase-data";
 import { useApp } from "@/store/app";
 
 export const Route = createFileRoute("/staff/")({
@@ -13,9 +15,21 @@ export const Route = createFileRoute("/staff/")({
 function StaffList() {
   const staff = useApp((state) => state.staff);
   const attendance = useApp((state) => state.attendance ?? []);
+  const deleteStaff = useApp((state) => state.deleteStaff);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState("all");
   const today = new Date().toISOString().slice(0, 10);
+
+  const removeStaff = async (staffId: string, staffName: string) => {
+    if (
+      !confirm(`Delete ${staffName}? This removes staff attendance and unassigns related records.`)
+    )
+      return;
+    deleteStaff(staffId);
+    await deleteStaffFromSupabase(staffId);
+    toast.success("Staff deleted");
+  };
+
   const list = staff
     .filter((person) => active === "all" || String(person.active) === active)
     .filter((person) =>
@@ -94,10 +108,8 @@ function StaffList() {
               record.date === today,
           );
           return (
-            <Link
+            <div
               key={person.id}
-              to="/staff/$id"
-              params={{ id: person.id }}
               className="card-surface flex items-center gap-3 p-4 hover:border-primary/50"
             >
               <div
@@ -121,8 +133,25 @@ function StaffList() {
                 >
                   {present ? "Present today" : person.active ? "Active" : "Inactive"}
                 </div>
+                <div className="mt-3 flex justify-end gap-2">
+                  <Link
+                    to="/staff/$id"
+                    params={{ id: person.id }}
+                    className="text-xs font-semibold hover:text-primary"
+                  >
+                    Profile
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => void removeStaff(person.id, person.name)}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-destructive hover:text-destructive/80"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete
+                  </button>
+                </div>
               </div>
-            </Link>
+            </div>
           );
         })}
       </div>

@@ -1,5 +1,6 @@
-import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+﻿import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Home, Calendar, IndianRupee, Dumbbell, User, LogOut } from "lucide-react";
+import { signOutSupabase } from "@/lib/supabase-auth";
 import { useApp } from "@/store/app";
 import { useEffect, useState } from "react";
 
@@ -14,6 +15,7 @@ const tabs = [
 
 function MemberLayout() {
   const auth = useApp((s) => s.auth);
+  const authReady = useApp((s) => s.authReady);
   const logout = useApp((s) => s.logout);
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
@@ -22,9 +24,10 @@ function MemberLayout() {
     setReady(true);
   }, []);
   useEffect(() => {
-    if (ready && !auth) navigate({ to: "/login", replace: true });
-  }, [auth, navigate, ready]);
-  if (!ready || !auth) {
+    if (ready && authReady && !auth) navigate({ to: "/login", replace: true });
+    if (ready && authReady && auth && auth.role !== "member") navigate({ to: "/dashboard", replace: true });
+  }, [auth, authReady, navigate, ready]);
+  if (!ready || !authReady || !auth) {
     return (
       <div className="grid min-h-screen place-items-center bg-background">
         <Dumbbell className="h-8 w-8 animate-pulse text-primary" />
@@ -33,13 +36,14 @@ function MemberLayout() {
   }
   return (
     <div className="min-h-screen bg-background text-foreground pb-20">
-      <header className="sticky top-0 z-20 bg-background/90 backdrop-blur border-b border-border">
+      <header className="sticky top-0 z-20 bg-background border-b border-border">
         <div className="flex items-center justify-between px-4 h-14 max-w-2xl mx-auto">
           <Link to="/member/home" className="font-black text-foreground">
             FIT <span className="text-primary">&</span> FYT
           </Link>
           <button
-            onClick={() => {
+            onClick={async () => {
+              await signOutSupabase();
               logout();
               navigate({ to: "/login" });
             }}
@@ -77,3 +81,5 @@ function MemberLayout() {
     </div>
   );
 }
+
+

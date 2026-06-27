@@ -1,64 +1,33 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  Cpu,
+  AlertTriangle,
+  Clock3,
   Edit3,
   Fingerprint,
   PlugZap,
   Plus,
   RefreshCw,
   Router,
-  ScanFace,
   Trash2,
-  Wifi,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AppShell, Card } from "@/components/layout/AppShell";
-import { dmy, inr } from "@/lib/format";
-import { useApp, type BiometricDevice } from "@/store/app";
+import { dmy } from "@/lib/format";
+import { isRetiredBiometricDevice, useApp, type BiometricDevice } from "@/store/app";
 
 export const Route = createFileRoute("/hardware")({
   head: () => ({ meta: [{ title: "Biometric Devices - Fit & Fyt GymOS" }] }),
   component: Hardware,
 });
 
-const recommended = [
-  {
-    name: "ESSL K30 Pro WiFi",
-    price: 8000,
-    tag: "Budget pick",
-    icon: Fingerprint,
-    specs: [
-      "Fingerprint only",
-      "2,000 fingerprint capacity",
-      "WiFi connectivity",
-      "Best for small gyms",
-    ],
-  },
-  {
-    name: "ESSL X990",
-    price: 13000,
-    tag: "Best performance",
-    icon: Cpu,
-    specs: [
-      "Fingerprint + RFID",
-      "10,000 fingerprint capacity",
-      "TCP/IP + USB",
-      "Best for 200-1000 members",
-    ],
-  },
-  {
-    name: "ESSL Aiface-Orcus",
-    price: 12500,
-    tag: "Face + biometric",
-    icon: ScanFace,
-    specs: ["Face + fingerprint", "AI recognition", "Card support", "Best for premium gyms"],
-  },
-];
-
 function Hardware() {
   const branches = useApp((state) => state.branches);
-  const devices = useApp((state) => state.biometricDevices ?? []);
+  const storedDevices = useApp((state) => state.biometricDevices ?? []);
+  const devices = useMemo(
+    () => storedDevices.filter((device) => !isRetiredBiometricDevice(device)),
+    [storedDevices],
+  );
   const attendance = useApp((state) => state.attendance ?? []);
   const addDevice = useApp((state) => state.addBiometricDevice);
   const updateDevice = useApp((state) => state.updateBiometricDevice);
@@ -68,51 +37,78 @@ function Hardware() {
   const [editing, setEditing] = useState<BiometricDevice | null>(null);
   const [form, setForm] = useState({
     name: "",
-    model: "ESSL K30 Pro WiFi",
+    model: "Hikvision DS-K1T320EFWX",
     branchId: branches[0]?.id ?? "b1",
     ipAddress: "",
-    port: "4370",
+    port: "443",
+    username: "",
+    password: "",
+    pollingIntervalSeconds: 30,
+    fingerprintPath: "/doc/index.html#/dashboard",
   });
 
   const openForm = (device?: BiometricDevice) => {
     setEditing(device ?? null);
     setForm({
       name: device?.name ?? "",
-      model: device?.model ?? "ESSL K30 Pro WiFi",
+      model: device?.model ?? "Hikvision DS-K1T320EFWX",
       branchId: device?.branchId ?? branches[0]?.id ?? "b1",
       ipAddress: device?.ipAddress ?? "",
-      port: device?.port ?? "4370",
+      port: device?.port ?? "443",
+      username: device?.username ?? "",
+      password: "",
+      pollingIntervalSeconds: device?.pollingIntervalSeconds ?? 30,
+      fingerprintPath: device?.fingerprintPath ?? "/doc/index.html#/dashboard",
     });
   };
   const save = () => {
     if (!form.name.trim() || !form.ipAddress.trim())
       return toast.error("Device name and IP address are required");
+    const payload = {
+      ...form,
+      username: form.username.trim() || editing?.username || "",
+      password: form.password.trim() || editing?.password || "",
+    };
     if (editing) {
-      updateDevice(editing.id, form);
+      updateDevice(editing.id, payload);
       toast.success("Device updated");
     } else {
-      addDevice(form);
+      addDevice(payload);
       toast.success("Device added");
     }
     setEditing(null);
     setForm({
       name: "",
-      model: "ESSL K30 Pro WiFi",
+      model: "Hikvision DS-K1T320EFWX",
       branchId: branches[0]?.id ?? "b1",
       ipAddress: "",
-      port: "4370",
+      port: "443",
+      username: "",
+      password: "",
+      pollingIntervalSeconds: 30,
+      fingerprintPath: "/doc/index.html#/dashboard",
     });
   };
 
   return (
     <AppShell
       title="Biometric Devices"
-      description="Manage attendance devices now. Real API sync can be connected later."
+      description="Manage registered readers, credentials, polling, and terminal enrollment paths."
       actions={
-        <button onClick={() => openForm()} className="btn-primary text-xs">
-          <Plus className="h-4 w-4" />
-          Add device
-        </button>
+        <>
+          <Link to="/reader-status" className="subtle-button">
+            <Clock3 className="h-4 w-4" />
+            Status
+          </Link>
+          <Link to="/reader-history" className="subtle-button">
+            <AlertTriangle className="h-4 w-4" />
+            History
+          </Link>
+          <button onClick={() => openForm()} className="btn-primary text-xs">
+            <Plus className="h-4 w-4" />
+            Add device
+          </button>
+        </>
       }
     >
       <div className="mb-5 grid gap-3 sm:grid-cols-4">
@@ -122,8 +118,8 @@ function Hardware() {
           value={devices.filter((device) => device.status === "Connected").length}
         />
         <Metric
-          label="Mapped users"
-          value={devices.reduce((sum, device) => sum + device.usersMapped, 0)}
+          label="Errors"
+          value={devices.filter((device) => device.status === "Error").length}
         />
         <Metric
           label="Biometric punches"
@@ -140,10 +136,14 @@ function Hardware() {
                 setEditing(null);
                 setForm({
                   name: "",
-                  model: "ESSL K30 Pro WiFi",
+                  model: "Hikvision DS-K1T320EFWX",
                   branchId: branches[0]?.id ?? "b1",
                   ipAddress: "",
-                  port: "4370",
+                  port: "443",
+                  username: "",
+                  password: "",
+                  pollingIntervalSeconds: 30,
+                  fingerprintPath: "/doc/index.html#/dashboard",
                 });
               }}
               className="text-xs text-muted-foreground hover:text-primary"
@@ -182,7 +182,7 @@ function Hardware() {
             <Field label="IP address">
               <input
                 className="input-field"
-                placeholder="192.168.1.201"
+                placeholder="192.168.0.100"
                 value={form.ipAddress}
                 onChange={(event) => setForm({ ...form, ipAddress: event.target.value })}
               />
@@ -192,6 +192,42 @@ function Hardware() {
                 className="input-field"
                 value={form.port}
                 onChange={(event) => setForm({ ...form, port: event.target.value })}
+              />
+            </Field>
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Field label="Username">
+              <input
+                className="input-field"
+                value={form.username}
+                onChange={(event) => setForm({ ...form, username: event.target.value })}
+              />
+            </Field>
+            <Field label="Password">
+              <input
+                className="input-field"
+                type="password"
+                placeholder={editing?.password ? "Saved. Leave blank to keep current password" : ""}
+                value={form.password}
+                onChange={(event) => setForm({ ...form, password: event.target.value })}
+              />
+            </Field>
+            <Field label="Polling interval seconds">
+              <input
+                className="input-field"
+                type="number"
+                min={10}
+                value={form.pollingIntervalSeconds}
+                onChange={(event) =>
+                  setForm({ ...form, pollingIntervalSeconds: Number(event.target.value || 30) })
+                }
+              />
+            </Field>
+            <Field label="Fingerprint page path">
+              <input
+                className="input-field"
+                value={form.fingerprintPath}
+                onChange={(event) => setForm({ ...form, fingerprintPath: event.target.value })}
               />
             </Field>
           </div>
@@ -218,7 +254,7 @@ function Hardware() {
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="font-bold">{device.name}</h2>
                     <span
-                      className={`status-badge ${device.status === "Connected" ? "status-active" : "status-inactive"}`}
+                      className={`status-badge ${device.status === "Connected" ? "status-active" : device.status === "Error" ? "border-amber-500/40 bg-amber-500/10 text-amber-300" : "status-inactive"}`}
                     >
                       {device.status}
                     </span>
@@ -303,39 +339,6 @@ function Hardware() {
           </Card>
         )}
       </div>
-
-      <Card>
-        <div className="mb-4 flex items-center gap-2">
-          <Wifi className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-bold">Recommended devices</h2>
-        </div>
-        <div className="grid gap-3 lg:grid-cols-3">
-          {recommended.map((device) => {
-            const Icon = device.icon;
-            return (
-              <div key={device.name} className="rounded-md border border-border p-4">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-md bg-primary/10">
-                    <Icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-bold uppercase text-primary">{device.tag}</div>
-                    <div className="text-sm font-bold">{device.name}</div>
-                  </div>
-                </div>
-                <div className="mt-3 text-2xl font-black text-amber-400">{inr(device.price)}</div>
-                <ul className="mt-3 space-y-1">
-                  {device.specs.map((spec) => (
-                    <li key={spec} className="text-xs text-muted-foreground">
-                      - {spec}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
     </AppShell>
   );
 }

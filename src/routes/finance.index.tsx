@@ -9,11 +9,10 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useState } from "react";
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { AppShell, Card } from "@/components/layout/AppShell";
 import { downloadCsv, downloadExcel } from "@/lib/export";
 import { inr } from "@/lib/format";
-import { useApp } from "@/store/app";
+import { getTrainerCommissionEntries, useApp } from "@/store/app";
 
 export const Route = createFileRoute("/finance/")({
   head: () => ({ meta: [{ title: "Finance - Fit & Fyt GymOS" }] }),
@@ -25,6 +24,8 @@ type Period = "week" | "month" | "year" | "all";
 function Finance() {
   const payments = useApp((state) => state.payments);
   const members = useApp((state) => state.members);
+  const staff = useApp((state) => state.staff);
+  const payroll = useApp((state) => state.payroll ?? []);
   const [period, setPeriod] = useState<Period>("month");
   const now = new Date();
   const filtered = payments.filter((payment) => inPeriod(payment.date, period, now));
@@ -34,6 +35,17 @@ function Finance() {
   const total = paid.reduce((sum, payment) => sum + payment.amount, 0);
   const refundTotal = refunds.reduce((sum, payment) => sum + payment.amount, 0);
   const pendingTotal = pending.reduce((sum, payment) => sum + payment.amount, 0);
+  const commissionEntries = getTrainerCommissionEntries(payments, members, staff, payroll);
+  const filteredCommissions = commissionEntries.filter((entry) =>
+    inPeriod(entry.paymentDate, period, now),
+  );
+  const ptRevenue = paid
+    .filter((payment) => payment.category === "Personal Training")
+    .reduce((sum, payment) => sum + payment.amount, 0);
+  const ptCommission = filteredCommissions.reduce(
+    (sum, entry) => sum + (entry.payoutStatus === "Refunded" ? 0 : entry.commissionAmount),
+    0,
+  );
   const newMembers = members.filter((member) => inPeriod(member.startDate, period, now)).length;
   const chart = Array.from({ length: 6 }, (_, index) => {
     const date = new Date(now.getFullYear(), now.getMonth() - 5 + index, 1);
@@ -56,14 +68,31 @@ function Finance() {
       payment.date.slice(0, 10),
       member?.name ?? "Unknown",
       payment.type ?? "payment",
+      payment.category ?? "Membership",
       payment.plan,
+      staff.find((person) => person.id === payment.trainerId)?.name ?? "",
+      payment.commissionPercent ? `${payment.commissionPercent}%` : "",
+      payment.commissionAmount ?? "",
       payment.mode,
       payment.status,
       payment.amount,
       payment.reference ?? "",
     ];
   });
-  const headers = ["Date", "Member", "Type", "Plan", "Mode", "Status", "Amount", "Reference"];
+  const headers = [
+    "Date",
+    "Member",
+    "Type",
+    "Category",
+    "Plan",
+    "Trainer",
+    "Commission %",
+    "Commission",
+    "Mode",
+    "Status",
+    "Amount",
+    "Reference",
+  ];
 
   return (
     <AppShell
@@ -104,7 +133,7 @@ function Finance() {
         ))}
       </div>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <div className="section-label">Collected</div>
           <div className="mt-3 text-3xl font-black text-emerald-400">{inr(total)}</div>
@@ -124,30 +153,17 @@ function Finance() {
             {refunds.length} refunds recorded
           </div>
         </Card>
+        <Card>
+          <div className="section-label">PT Commission</div>
+          <div className="mt-3 text-3xl font-black text-primary">{inr(ptCommission)}</div>
+          <div className="mt-1 text-xs text-muted-foreground">from {inr(ptRevenue)} PT revenue</div>
+        </Card>
       </div>
 
       <Card className="mb-5">
         <div className="mb-3 text-sm font-semibold">Revenue - Last 6 months</div>
         <div className="h-56">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chart}>
-              <XAxis
-                dataKey="month"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-              />
-              <Tooltip
-                formatter={(value) => inr(Number(value))}
-                contentStyle={{
-                  background: "var(--card)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 8,
-                }}
-              />
-              <Bar dataKey="value" fill="var(--primary)" radius={[5, 5, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <RevenueBars data={chart} />
         </div>
       </Card>
 
@@ -208,4 +224,26 @@ function inPeriod(value: string, period: Period, now: Date) {
   if (period === "month")
     return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
   return now.getTime() - date.getTime() <= 7 * 86400000 && date <= now;
+}
+
+function RevenueBars({ data }: { data: { month: string; value: number }[] }) {
+  const max = Math.max(...data.map((item) => item.value), 1);
+
+  return (
+    <div className="flex h-full items-end gap-3 pt-4">
+      {data.map((item) => {
+        const height = Math.max(12, Math.round((item.value / max) * 100));
+        return (
+          <div key={item.month} className="flex h-full min-w-0 flex-1 flex-col justify-end">
+            <div
+              className="rounded-t-md bg-primary transition-[height]"
+              style={{ height: `${height}%` }}
+              title={`${item.month}: ${inr(item.value)}`}
+            />
+            <div className="mt-2 text-center text-[11px] text-muted-foreground">{item.month}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }

@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StaffRouteImport } from './routes/staff'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ReaderStatusRouteImport } from './routes/reader-status'
+import { Route as ReaderHistoryRouteImport } from './routes/reader-history'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as MessagesRouteImport } from './routes/messages'
@@ -20,6 +22,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as LeadsRouteImport } from './routes/leads'
 import { Route as HardwareRouteImport } from './routes/hardware'
 import { Route as FinanceRouteImport } from './routes/finance'
+import { Route as EnrollmentRouteImport } from './routes/enrollment'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BranchesRouteImport } from './routes/branches'
 import { Route as AttendanceRouteImport } from './routes/attendance'
@@ -53,6 +56,16 @@ const StaffRoute = StaffRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReaderStatusRoute = ReaderStatusRouteImport.update({
+  id: '/reader-status',
+  path: '/reader-status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReaderHistoryRoute = ReaderHistoryRouteImport.update({
+  id: '/reader-history',
+  path: '/reader-history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -98,6 +111,11 @@ const HardwareRoute = HardwareRouteImport.update({
 const FinanceRoute = FinanceRouteImport.update({
   id: '/finance',
   path: '/finance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EnrollmentRoute = EnrollmentRouteImport.update({
+  id: '/enrollment',
+  path: '/enrollment',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -226,6 +244,7 @@ export interface FileRoutesByFullPath {
   '/attendance': typeof AttendanceRoute
   '/branches': typeof BranchesRouteWithChildren
   '/dashboard': typeof DashboardRoute
+  '/enrollment': typeof EnrollmentRoute
   '/finance': typeof FinanceRouteWithChildren
   '/hardware': typeof HardwareRoute
   '/leads': typeof LeadsRouteWithChildren
@@ -235,6 +254,8 @@ export interface FileRoutesByFullPath {
   '/messages': typeof MessagesRoute
   '/notifications': typeof NotificationsRoute
   '/pricing': typeof PricingRoute
+  '/reader-history': typeof ReaderHistoryRoute
+  '/reader-status': typeof ReaderStatusRoute
   '/settings': typeof SettingsRoute
   '/staff': typeof StaffRouteWithChildren
   '/branches/$id': typeof BranchesIdRoute
@@ -262,12 +283,15 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/attendance': typeof AttendanceRoute
   '/dashboard': typeof DashboardRoute
+  '/enrollment': typeof EnrollmentRoute
   '/hardware': typeof HardwareRoute
   '/login': typeof LoginRoute
   '/member': typeof MemberRouteWithChildren
   '/messages': typeof MessagesRoute
   '/notifications': typeof NotificationsRoute
   '/pricing': typeof PricingRoute
+  '/reader-history': typeof ReaderHistoryRoute
+  '/reader-status': typeof ReaderStatusRoute
   '/settings': typeof SettingsRoute
   '/branches/$id': typeof BranchesIdRoute
   '/finance/dues': typeof FinanceDuesRoute
@@ -296,6 +320,7 @@ export interface FileRoutesById {
   '/attendance': typeof AttendanceRoute
   '/branches': typeof BranchesRouteWithChildren
   '/dashboard': typeof DashboardRoute
+  '/enrollment': typeof EnrollmentRoute
   '/finance': typeof FinanceRouteWithChildren
   '/hardware': typeof HardwareRoute
   '/leads': typeof LeadsRouteWithChildren
@@ -305,6 +330,8 @@ export interface FileRoutesById {
   '/messages': typeof MessagesRoute
   '/notifications': typeof NotificationsRoute
   '/pricing': typeof PricingRoute
+  '/reader-history': typeof ReaderHistoryRoute
+  '/reader-status': typeof ReaderStatusRoute
   '/settings': typeof SettingsRoute
   '/staff': typeof StaffRouteWithChildren
   '/branches/$id': typeof BranchesIdRoute
@@ -335,6 +362,7 @@ export interface FileRouteTypes {
     | '/attendance'
     | '/branches'
     | '/dashboard'
+    | '/enrollment'
     | '/finance'
     | '/hardware'
     | '/leads'
@@ -344,6 +372,8 @@ export interface FileRouteTypes {
     | '/messages'
     | '/notifications'
     | '/pricing'
+    | '/reader-history'
+    | '/reader-status'
     | '/settings'
     | '/staff'
     | '/branches/$id'
@@ -371,12 +401,15 @@ export interface FileRouteTypes {
     | '/'
     | '/attendance'
     | '/dashboard'
+    | '/enrollment'
     | '/hardware'
     | '/login'
     | '/member'
     | '/messages'
     | '/notifications'
     | '/pricing'
+    | '/reader-history'
+    | '/reader-status'
     | '/settings'
     | '/branches/$id'
     | '/finance/dues'
@@ -404,6 +437,7 @@ export interface FileRouteTypes {
     | '/attendance'
     | '/branches'
     | '/dashboard'
+    | '/enrollment'
     | '/finance'
     | '/hardware'
     | '/leads'
@@ -413,6 +447,8 @@ export interface FileRouteTypes {
     | '/messages'
     | '/notifications'
     | '/pricing'
+    | '/reader-history'
+    | '/reader-status'
     | '/settings'
     | '/staff'
     | '/branches/$id'
@@ -442,6 +478,7 @@ export interface RootRouteChildren {
   AttendanceRoute: typeof AttendanceRoute
   BranchesRoute: typeof BranchesRouteWithChildren
   DashboardRoute: typeof DashboardRoute
+  EnrollmentRoute: typeof EnrollmentRoute
   FinanceRoute: typeof FinanceRouteWithChildren
   HardwareRoute: typeof HardwareRoute
   LeadsRoute: typeof LeadsRouteWithChildren
@@ -451,6 +488,8 @@ export interface RootRouteChildren {
   MessagesRoute: typeof MessagesRoute
   NotificationsRoute: typeof NotificationsRoute
   PricingRoute: typeof PricingRoute
+  ReaderHistoryRoute: typeof ReaderHistoryRoute
+  ReaderStatusRoute: typeof ReaderStatusRoute
   SettingsRoute: typeof SettingsRoute
   StaffRoute: typeof StaffRouteWithChildren
 }
@@ -469,6 +508,20 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reader-status': {
+      id: '/reader-status'
+      path: '/reader-status'
+      fullPath: '/reader-status'
+      preLoaderRoute: typeof ReaderStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reader-history': {
+      id: '/reader-history'
+      path: '/reader-history'
+      fullPath: '/reader-history'
+      preLoaderRoute: typeof ReaderHistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -532,6 +585,13 @@ declare module '@tanstack/react-router' {
       path: '/finance'
       fullPath: '/finance'
       preLoaderRoute: typeof FinanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/enrollment': {
+      id: '/enrollment'
+      path: '/enrollment'
+      fullPath: '/enrollment'
+      preLoaderRoute: typeof EnrollmentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -803,6 +863,7 @@ const rootRouteChildren: RootRouteChildren = {
   AttendanceRoute: AttendanceRoute,
   BranchesRoute: BranchesRouteWithChildren,
   DashboardRoute: DashboardRoute,
+  EnrollmentRoute: EnrollmentRoute,
   FinanceRoute: FinanceRouteWithChildren,
   HardwareRoute: HardwareRoute,
   LeadsRoute: LeadsRouteWithChildren,
@@ -812,6 +873,8 @@ const rootRouteChildren: RootRouteChildren = {
   MessagesRoute: MessagesRoute,
   NotificationsRoute: NotificationsRoute,
   PricingRoute: PricingRoute,
+  ReaderHistoryRoute: ReaderHistoryRoute,
+  ReaderStatusRoute: ReaderStatusRoute,
   SettingsRoute: SettingsRoute,
   StaffRoute: StaffRouteWithChildren,
 }

@@ -15,6 +15,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { AppShell, Card } from "@/components/layout/AppShell";
 import { downloadCsv, downloadExcel } from "@/lib/export";
+import { signOutSupabase } from "@/lib/supabase-auth";
 import { useApp, type GymSettings, type NotificationSettings } from "@/store/app";
 
 export const Route = createFileRoute("/settings")({
@@ -56,11 +57,27 @@ function Settings() {
     },
     {
       label: "Payments",
-      headers: ["Date", "Member ID", "Plan", "Mode", "Status", "Type", "Amount"],
+      headers: [
+        "Date",
+        "Member ID",
+        "Plan",
+        "Category",
+        "Trainer",
+        "Commission %",
+        "Commission",
+        "Mode",
+        "Status",
+        "Type",
+        "Amount",
+      ],
       rows: payments.map((payment) => [
         payment.date.slice(0, 10),
         payment.memberId,
         payment.plan,
+        payment.category ?? "Membership",
+        staff.find((person) => person.id === payment.trainerId)?.name ?? "",
+        payment.commissionPercent ? `${payment.commissionPercent}%` : "",
+        payment.commissionAmount ?? "",
         payment.mode,
         payment.status,
         payment.type ?? "payment",
@@ -152,6 +169,13 @@ function Settings() {
               onChange={(event) => setProfile({ ...profile, email: event.target.value })}
             />
           </Field>
+          <Field label="Support phone">
+            <input
+              className="input-field"
+              value={profile.supportPhone}
+              onChange={(event) => setProfile({ ...profile, supportPhone: event.target.value })}
+            />
+          </Field>
           <Field label="Support WhatsApp number">
             <input
               className="input-field"
@@ -180,7 +204,7 @@ function Settings() {
             detail: `${branches.length} branches`,
           },
           {
-            to: "/staff",
+            to: "/members",
             icon: Users,
             label: "Staff & Access",
             detail: `${staff.length} staff users`,
@@ -320,7 +344,8 @@ function Settings() {
             Reset local data
           </button>
           <button
-            onClick={() => {
+            onClick={async () => {
+              await signOutSupabase();
               logout();
               navigate({ to: "/login" });
             }}

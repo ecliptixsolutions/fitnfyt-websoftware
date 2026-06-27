@@ -10,6 +10,20 @@ export default defineConfig({
   nitro: {
     preset: "vercel",
   },
+  vite: {
+    build: {
+      chunkSizeWarningLimit: 650,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes("node_modules")) return;
+            if (id.includes("react-dom") || id.includes("scheduler")) return "vendor-react";
+            if (id.includes("lucide-react")) return "vendor-icons";
+          },
+        },
+      },
+    },
+  },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
