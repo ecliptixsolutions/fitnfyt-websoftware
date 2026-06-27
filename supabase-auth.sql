@@ -27,6 +27,41 @@ create table if not exists public.audit_logs (
 alter table public.user_profiles enable row level security;
 alter table public.audit_logs enable row level security;
 
+create or replace function public.is_fitfyt_admin()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.user_profiles
+    where id = auth.uid()
+      and role in ('super', 'owner')
+      and active = true
+  );
+$$;
+
+create or replace function public.is_fitfyt_super_admin()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.user_profiles
+    where id = auth.uid()
+      and role = 'super'
+      and active = true
+  );
+$$;
+
+grant execute on function public.is_fitfyt_admin() to authenticated;
+grant execute on function public.is_fitfyt_super_admin() to authenticated;
+
 drop policy if exists "Users can read own profile" on public.user_profiles;
 create policy "Users can read own profile"
   on public.user_profiles for select
@@ -37,35 +72,14 @@ drop policy if exists "Admins can read profiles" on public.user_profiles;
 create policy "Admins can read profiles"
   on public.user_profiles for select
   to authenticated
-  using (
-    exists (
-      select 1 from public.user_profiles p
-      where p.id = auth.uid()
-      and p.role in ('super', 'owner')
-      and p.active = true
-    )
-  );
+  using (public.is_fitfyt_admin());
 
 drop policy if exists "Admins can manage profiles" on public.user_profiles;
 create policy "Admins can manage profiles"
   on public.user_profiles for all
   to authenticated
-  using (
-    exists (
-      select 1 from public.user_profiles p
-      where p.id = auth.uid()
-      and p.role in ('super', 'owner')
-      and p.active = true
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.user_profiles p
-      where p.id = auth.uid()
-      and p.role in ('super', 'owner')
-      and p.active = true
-    )
-  );
+  using (public.is_fitfyt_super_admin())
+  with check (public.is_fitfyt_super_admin());
 
 drop policy if exists "Authenticated users can insert audit logs" on public.audit_logs;
 create policy "Authenticated users can insert audit logs"
@@ -77,14 +91,7 @@ drop policy if exists "Admins can read audit logs" on public.audit_logs;
 create policy "Admins can read audit logs"
   on public.audit_logs for select
   to authenticated
-  using (
-    exists (
-      select 1 from public.user_profiles p
-      where p.id = auth.uid()
-      and p.role in ('super', 'owner')
-      and p.active = true
-    )
-  );
+  using (public.is_fitfyt_admin());
 
 create or replace function public.touch_updated_at()
 returns trigger

@@ -6,6 +6,7 @@ import {
   Crown,
   Download,
   LifeBuoy,
+  KeyRound,
   LogOut,
   ShieldAlert,
   Trash2,
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/settings")({
 });
 
 function Settings() {
+  const auth = useApp((state) => state.auth);
   const logout = useApp((state) => state.logout);
   const gymSettings = useApp((state) => state.gymSettings);
   const notificationSettings = useApp((state) => state.notificationSettings);
@@ -216,6 +218,16 @@ function Settings() {
             detail: `${devices.length} configured`,
           },
           { to: "/pricing", icon: Crown, label: "Plan & Billing", detail: "Subscription plans" },
+          ...(auth?.role === "super"
+            ? [
+                {
+                  to: "/user-access",
+                  icon: KeyRound,
+                  label: "User Access",
+                  detail: "Create and manage logins",
+                },
+              ]
+            : []),
         ].map((link) => {
           const Icon = link.icon;
           return (

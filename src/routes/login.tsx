@@ -40,7 +40,7 @@ function Login() {
       toast.success(`Welcome, ${user.name}`);
       navigate({ to: user.role === "member" ? "/member/home" : "/dashboard" });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Login failed";
+      const message = authMessage(error, "Login failed");
       toast.error(message.includes("Invalid") ? "Invalid email or password" : message);
     } finally {
       setLoading(false);
@@ -57,7 +57,7 @@ function Login() {
       await requestPasswordReset(identifier.trim());
       toast.success("Password reset email sent");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not send reset email");
+      toast.error(authMessage(error, "Could not send reset email"));
     } finally {
       setLoading(false);
     }
@@ -140,4 +140,17 @@ function Login() {
       </div>
     </div>
   );
+}
+
+function authMessage(error: unknown, fallback: string) {
+  if (!(error instanceof Error)) return fallback;
+  try {
+    const parsed = JSON.parse(error.message);
+    if (parsed.error_code === "over_email_send_rate_limit") {
+      return "Please wait one minute before requesting another reset email.";
+    }
+    return parsed.msg || parsed.error_description || parsed.error || fallback;
+  } catch {
+    return error.message || fallback;
+  }
 }

@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { colorFromName, daysBetween, dmy, initials, inr } from "@/lib/format";
+import { defaultMembershipPlan, getMembershipPlan, membershipPlans } from "@/lib/membership-plans";
 import { deleteMemberFromSupabase } from "@/lib/supabase-data";
 import { useApp, type Payment, type Status } from "@/store/app";
 
@@ -31,12 +32,6 @@ export const Route = createFileRoute("/members/$id")({
   head: () => ({ meta: [{ title: "Member Profile - Fit & Fyt GymOS" }] }),
   component: Detail,
 });
-
-const planPrices: Record<string, Record<number, number>> = {
-  Basic: { 6: 4999, 12: 8999, 24: 16999 },
-  Premium: { 6: 6999, 12: 11999, 24: 21499 },
-  "Premium Plus": { 6: 13499, 12: 24999, 24: 44999 },
-};
 
 function Detail() {
   const { id } = Route.useParams();
@@ -62,9 +57,9 @@ function Detail() {
     status: "active" as Status,
   });
   const [renewal, setRenewal] = useState({
-    plan: "Premium",
-    months: 12,
-    amount: 11999,
+    plan: defaultMembershipPlan.name,
+    months: defaultMembershipPlan.months,
+    amount: defaultMembershipPlan.price,
     mode: "UPI" as Payment["mode"],
   });
   const navigate = useNavigate();
@@ -95,11 +90,11 @@ function Detail() {
     setEditOpen(true);
   };
   const openRenew = () => {
-    const months = 12;
+    const selectedPlan = getMembershipPlan(member.plan);
     setRenewal({
-      plan: member.plan,
-      months,
-      amount: planPrices[member.plan]?.[months] ?? 0,
+      plan: selectedPlan.name,
+      months: selectedPlan.months,
+      amount: selectedPlan.price,
       mode: "UPI",
     });
     setRenewOpen(true);
@@ -120,8 +115,11 @@ function Detail() {
 
   const updateRenewal = (patch: Partial<typeof renewal>) => {
     const next = { ...renewal, ...patch };
-    if (patch.plan || patch.months)
-      next.amount = planPrices[next.plan]?.[next.months] ?? next.amount;
+    if (patch.plan) {
+      const selectedPlan = getMembershipPlan(next.plan);
+      next.months = selectedPlan.months;
+      next.amount = selectedPlan.price;
+    }
     setRenewal(next);
   };
 
@@ -389,8 +387,8 @@ function Detail() {
                 value={edit.plan}
                 onChange={(event) => setEdit({ ...edit, plan: event.target.value })}
               >
-                {Object.keys(planPrices).map((plan) => (
-                  <option key={plan}>{plan}</option>
+                {membershipPlans.map((plan) => (
+                  <option key={plan.name}>{plan.name}</option>
                 ))}
               </select>
             </Field>
@@ -449,8 +447,8 @@ function Detail() {
                 value={renewal.plan}
                 onChange={(event) => updateRenewal({ plan: event.target.value })}
               >
-                {Object.keys(planPrices).map((plan) => (
-                  <option key={plan}>{plan}</option>
+                {membershipPlans.map((plan) => (
+                  <option key={plan.name}>{plan.name}</option>
                 ))}
               </select>
             </Field>
@@ -460,9 +458,9 @@ function Detail() {
                 value={renewal.months}
                 onChange={(event) => updateRenewal({ months: Number(event.target.value) })}
               >
-                <option value={6}>6 months</option>
-                <option value={12}>1 year</option>
-                <option value={24}>2 years</option>
+                <option value={renewal.months}>
+                  {getMembershipPlan(renewal.plan).durationLabel}
+                </option>
               </select>
             </Field>
             <Field label="Amount">

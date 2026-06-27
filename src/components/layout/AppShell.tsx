@@ -9,6 +9,7 @@ import {
   Cpu,
   Crown,
   Dumbbell,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -37,6 +38,7 @@ const navItems = [
   { to: "/hardware", label: "Biometric", icon: Cpu },
   { to: "/reader-status", label: "Reader Status", icon: Clock3 },
   { to: "/enrollment", label: "Enrollment", icon: UserRound },
+  { to: "/user-access", label: "User Access", icon: KeyRound },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
@@ -44,6 +46,7 @@ const mobileItems = navItems.slice(0, 4);
 
 function canUsePath(auth: { role: string | null; permissions?: string[] } | null, path: string) {
   if (!auth) return false;
+  if (path === "/user-access" || path.startsWith("/user-access/")) return auth.role === "super";
   if (auth.role === "super" || auth.role === "owner" || auth.permissions?.includes("*"))
     return true;
   if (auth.role === "member") return path.startsWith("/member");

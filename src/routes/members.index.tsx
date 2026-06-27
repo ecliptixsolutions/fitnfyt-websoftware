@@ -15,6 +15,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { AppShell, Card, StatusBadge } from "@/components/layout/AppShell";
 import { colorFromName, dmy, initials } from "@/lib/format";
+import { addPlanMonths, defaultMembershipPlan } from "@/lib/membership-plans";
 import { deleteMemberFromSupabase, deleteStaffFromSupabase } from "@/lib/supabase-data";
 import { useApp, type Status } from "@/store/app";
 
@@ -129,10 +130,13 @@ function MembersList() {
         name: row.name,
         phone: row.phone,
         email: row.email,
-        plan: row.plan || "Basic",
+        plan: row.plan || defaultMembershipPlan.name,
         status: validStatuses.includes(row.status as Status) ? (row.status as Status) : "active",
         startDate: safeIso(row.startDate, new Date()),
-        expiryDate: safeIso(row.expiryDate, new Date(Date.now() + 365 * 86400000)),
+        expiryDate: safeIso(
+          row.expiryDate,
+          addPlanMonths(new Date(), defaultMembershipPlan.months),
+        ),
         amountPaid: Number(row.amountPaid) || 0,
         totalAmount: Number(row.totalAmount) || Number(row.amountPaid) || 0,
       }));

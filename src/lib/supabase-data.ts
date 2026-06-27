@@ -16,6 +16,7 @@ const SUPABASE_ANON_KEY =
   import.meta.env.VITE_SUPABASE_ANON_KEY ?? "sb_publishable_RiKCU541R0b2uFu4RAS2-Q_3bbTx10m";
 
 const enabled = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+const CLIENT_CLEANUP_AT = new Date("2026-06-27T00:00:00+05:30").getTime();
 
 type Snapshot = {
   members: Member[];
@@ -104,16 +105,54 @@ export async function loadSupabaseSnapshot(): Promise<Partial<Snapshot>> {
 
   const subjectAliases = buildSubjectAliases(hikvisionPeople);
   const attendanceRecords = normalizeAttendanceRecords(
-    attendance.map((row) => fromAttendanceRow(row, subjectAliases)),
+    attendance
+      .filter((row) => new Date(row.punch_in ?? row.created_at ?? 0).getTime() >= CLIENT_CLEANUP_AT)
+      .map((row) => fromAttendanceRow(row, subjectAliases)),
   );
-  const memberRows = members.map(fromMemberRow).filter((member) => !isRetiredDemoMember(member));
+  const memberRows = members
+    .filter(
+      (row) =>
+        String(row.id).toUpperCase() === "EMP001" ||
+        String(row.name).trim().toLowerCase() === "test employee" ||
+        new Date(row.created_at ?? 0).getTime() >= CLIENT_CLEANUP_AT,
+    )
+    .map((row) => {
+      const isTestEmployee =
+        String(row.id).toUpperCase() === "EMP001" ||
+        String(row.name).trim().toLowerCase() === "test employee";
+      const isPreCleanupRecord =
+        new Date(row.updated_at ?? row.created_at ?? 0).getTime() < CLIENT_CLEANUP_AT;
+      return fromMemberRow(
+        isTestEmployee && isPreCleanupRecord
+          ? {
+              ...row,
+              plan: "12 Months Transformation",
+              amount_paid: 0,
+              total_amount: 0,
+            }
+          : row,
+      );
+    })
+    .filter((member) => !isRetiredDemoMember(member));
   const membersWithCheckIns = attachMemberCheckIns(memberRows, attendanceRecords);
 
   return {
     members: membersWithCheckIns,
-    staff: staff.map(fromStaffRow),
+    staff: staff
+      .filter(
+        (row) =>
+          !["s1", "s2", "s3", "s4", "s5", "s6"].includes(String(row.id)) ||
+          new Date(row.created_at ?? 0).getTime() >= CLIENT_CLEANUP_AT,
+      )
+      .map(fromStaffRow),
     attendance: attendanceRecords,
-    leads: leads.map(fromLeadRow),
+    leads: leads
+      .filter(
+        (row) =>
+          !["l1", "l2", "l3", "l4", "l5"].includes(String(row.id)) ||
+          new Date(row.created_at ?? 0).getTime() >= CLIENT_CLEANUP_AT,
+      )
+      .map(fromLeadRow),
     biometricDevices: biometricDevices
       .map(fromDeviceRow)
       .filter((device) => !isRetiredBiometricDevice(device)),

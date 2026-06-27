@@ -37,7 +37,7 @@ type SupabaseSessionResponse = {
   };
 };
 
-type ProfileRow = {
+export type ManagedUserProfile = {
   id: string;
   email?: string | null;
   phone?: string | null;
@@ -45,6 +45,8 @@ type ProfileRow = {
   role?: Role | null;
   branch_id?: string | null;
   permissions?: string[] | null;
+  active?: boolean | null;
+  created_at?: string | null;
 };
 
 export function getStoredAuthSession() {
@@ -75,7 +77,12 @@ export async function signInWithSupabase(identifier: string, password: string, r
   if (!data.access_token || !data.user) throw new Error("Supabase did not return a valid session.");
 
   const profile = await loadUserProfile(data.user.id, data.access_token);
-  const user = buildAuthUser(data.user, profile, requestedRole);
+  if (!profile) throw new Error("This account has not been given FITFYT access.");
+  if (profile.active === false) throw new Error("This account has been disabled by Super Admin.");
+  const user = buildAuthUser(data.user, profile);
+  if (!roleMatchesLogin(user.role, requestedRole)) {
+    throw new Error(`This account must use the ${loginLabel(user.role)} login tab.`);
+  }
   storeAuthSession({
     accessToken: data.access_token,
     refreshToken: data.refresh_token,
@@ -106,7 +113,8 @@ export async function restoreSupabaseAuth() {
     );
     if (!data?.id) throw new Error("Session user not found.");
     const profile = await loadUserProfile(data.id, session.accessToken);
-    const user = buildAuthUser(data, profile, session.user.role);
+    if (!profile || profile.active === false) throw new Error("Account access is unavailable.");
+    const user = buildAuthUser(data, profile);
     storeAuthSession({ ...session, user });
     return user;
   } catch {
@@ -140,7 +148,8 @@ async function refreshSupabaseAuth(refreshToken: string) {
   });
   if (!data.access_token || !data.user) throw new Error("Supabase refresh failed.");
   const profile = await loadUserProfile(data.user.id, data.access_token);
-  const user = buildAuthUser(data.user, profile, profile?.role ?? "staff");
+  if (!profile || profile.active === false) throw new Error("Account access is unavailable.");
+  const user = buildAuthUser(data.user, profile);
   storeAuthSession({
     accessToken: data.access_token,
     refreshToken: data.refresh_token ?? refreshToken,
@@ -153,7 +162,7 @@ async function refreshSupabaseAuth(refreshToken: string) {
 async function loadUserProfile(userId: string, token: string) {
   const query = `user_profiles?select=*&id=eq.${encodeURIComponent(userId)}&limit=1`;
   try {
-    const rows = await restRequest<ProfileRow[]>(query, token);
+    const rows = await restRequest<ManagedUserProfile[]>(query, token);
     return rows[0] ?? null;
   } catch {
     return null;
@@ -162,11 +171,10 @@ async function loadUserProfile(userId: string, token: string) {
 
 function buildAuthUser(
   user: NonNullable<SupabaseSessionResponse["user"]>,
-  profile: ProfileRow | null,
-  fallbackRole: Role,
+  profile: ManagedUserProfile,
 ): AuthUser {
   const metadata = { ...(user.user_metadata ?? {}), ...(user.app_metadata ?? {}) };
-  const role = normalizeRole(profile?.role ?? readString(metadata.role) ?? fallbackRole);
+  const role = normalizeRole(profile.role ?? readString(metadata.role));
   const name =
     profile?.name ||
     readString(metadata.name) ||
@@ -183,6 +191,15 @@ function buildAuthUser(
     branchId: profile?.branch_id || readString(metadata.branch_id) || readString(metadata.branchId),
     permissions: profile?.permissions || readStringArray(metadata.permissions),
   };
+}
+
+function roleMatchesLogin(actualRole: Role, requestedRole: Role) {
+  if (requestedRole === "owner") return actualRole === "owner" || actualRole === "super";
+  return actualRole === requestedRole;
+}
+
+function loginLabel(role: Role) {
+  return role === "super" || role === "owner" ? "Owner" : role === "staff" ? "Staff" : "Member";
 }
 
 function normalizeRole(value: unknown): Role {
@@ -230,4 +247,66 @@ async function restRequest<T>(tableAndQuery: string, token: string): Promise<T> 
   });
   if (!response.ok) throw new Error(await response.text());
   return (await response.json()) as T;
+}
+
+export async function getManagedUsers() {
+  const session = requireSession();
+  return restRequest<ManagedUserProfile[]>(
+    "user_profiles?select=*&order=created_at.desc",
+    session.accessToken,
+  );
+}
+
+export async function createManagedUser(input: {
+  email: string;
+  password: string;
+  name: string;
+  phone?: string;
+  role: Exclude<Role, "super">;
+  branchId?: string;
+  permissions: string[];
+}) {
+  return callUserAdmin("create", input);
+}
+
+export async function updateManagedUser(
+  id: string,
+  patch: {
+    name?: string;
+    phone?: string;
+    role?: Exclude<Role, "super">;
+    branchId?: string;
+    permissions?: string[];
+    active?: boolean;
+  },
+) {
+  return callUserAdmin("update", { id, ...patch });
+}
+
+export async function deleteManagedUser(id: string) {
+  return callUserAdmin("delete", { id });
+}
+
+async function callUserAdmin(action: string, payload: Record<string, unknown>) {
+  const session = requireSession();
+  const response = await fetch(
+    `${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/manage-users`,
+    {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${session.accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action, ...payload }),
+    },
+  );
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
+function requireSession() {
+  const session = getStoredAuthSession();
+  if (!session?.accessToken) throw new Error("Please sign in again.");
+  return session;
 }

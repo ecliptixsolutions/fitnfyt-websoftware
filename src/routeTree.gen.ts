@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UserAccessRouteImport } from './routes/user-access'
 import { Route as StaffRouteImport } from './routes/staff'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReaderStatusRouteImport } from './routes/reader-status'
@@ -48,6 +49,11 @@ import { Route as FinancePaymentsRouteImport } from './routes/finance.payments'
 import { Route as FinanceDuesRouteImport } from './routes/finance.dues'
 import { Route as BranchesIdRouteImport } from './routes/branches.$id'
 
+const UserAccessRoute = UserAccessRouteImport.update({
+  id: '/user-access',
+  path: '/user-access',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StaffRoute = StaffRouteImport.update({
   id: '/staff',
   path: '/staff',
@@ -258,6 +264,7 @@ export interface FileRoutesByFullPath {
   '/reader-status': typeof ReaderStatusRoute
   '/settings': typeof SettingsRoute
   '/staff': typeof StaffRouteWithChildren
+  '/user-access': typeof UserAccessRoute
   '/branches/$id': typeof BranchesIdRoute
   '/finance/dues': typeof FinanceDuesRoute
   '/finance/payments': typeof FinancePaymentsRoute
@@ -293,6 +300,7 @@ export interface FileRoutesByTo {
   '/reader-history': typeof ReaderHistoryRoute
   '/reader-status': typeof ReaderStatusRoute
   '/settings': typeof SettingsRoute
+  '/user-access': typeof UserAccessRoute
   '/branches/$id': typeof BranchesIdRoute
   '/finance/dues': typeof FinanceDuesRoute
   '/finance/payments': typeof FinancePaymentsRoute
@@ -334,6 +342,7 @@ export interface FileRoutesById {
   '/reader-status': typeof ReaderStatusRoute
   '/settings': typeof SettingsRoute
   '/staff': typeof StaffRouteWithChildren
+  '/user-access': typeof UserAccessRoute
   '/branches/$id': typeof BranchesIdRoute
   '/finance/dues': typeof FinanceDuesRoute
   '/finance/payments': typeof FinancePaymentsRoute
@@ -376,6 +385,7 @@ export interface FileRouteTypes {
     | '/reader-status'
     | '/settings'
     | '/staff'
+    | '/user-access'
     | '/branches/$id'
     | '/finance/dues'
     | '/finance/payments'
@@ -411,6 +421,7 @@ export interface FileRouteTypes {
     | '/reader-history'
     | '/reader-status'
     | '/settings'
+    | '/user-access'
     | '/branches/$id'
     | '/finance/dues'
     | '/finance/payments'
@@ -451,6 +462,7 @@ export interface FileRouteTypes {
     | '/reader-status'
     | '/settings'
     | '/staff'
+    | '/user-access'
     | '/branches/$id'
     | '/finance/dues'
     | '/finance/payments'
@@ -492,10 +504,18 @@ export interface RootRouteChildren {
   ReaderStatusRoute: typeof ReaderStatusRoute
   SettingsRoute: typeof SettingsRoute
   StaffRoute: typeof StaffRouteWithChildren
+  UserAccessRoute: typeof UserAccessRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/user-access': {
+      id: '/user-access'
+      path: '/user-access'
+      fullPath: '/user-access'
+      preLoaderRoute: typeof UserAccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/staff': {
       id: '/staff'
       path: '/staff'
@@ -877,6 +897,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReaderStatusRoute: ReaderStatusRoute,
   SettingsRoute: SettingsRoute,
   StaffRoute: StaffRouteWithChildren,
+  UserAccessRoute: UserAccessRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

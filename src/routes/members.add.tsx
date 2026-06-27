@@ -1,5 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell, Card } from "@/components/layout/AppShell";
+import {
+  addPlanMonths,
+  defaultMembershipPlan,
+  getMembershipPlan,
+  membershipPlans,
+} from "@/lib/membership-plans";
 import { queueHikvisionEnrollment } from "@/lib/supabase-data";
 import { useApp } from "@/store/app";
 import { useState, type ReactNode } from "react";
@@ -9,12 +15,6 @@ export const Route = createFileRoute("/members/add")({
   head: () => ({ meta: [{ title: "Add Member - Fit Force Gym" }] }),
   component: AddMember,
 });
-
-const plans = [
-  { name: "Basic", price: 8999, days: 365 },
-  { name: "Premium", price: 11999, days: 365 },
-  { name: "Premium Plus", price: 24999, days: 365 },
-];
 
 function defaultEmployeeNumber() {
   return `EMP${new Date().getTime().toString().slice(-6)}`;
@@ -31,9 +31,9 @@ function AddMember() {
     email: "",
     dob: "",
     gender: "Male",
-    plan: "Premium",
+    plan: defaultMembershipPlan.name,
     startDate: new Date().toISOString().slice(0, 10),
-    amountPaid: 11999,
+    amountPaid: defaultMembershipPlan.price,
     mode: "UPI",
     ref: "",
     locker: "",
@@ -42,9 +42,8 @@ function AddMember() {
     cardNumber: "",
     faceImagePath: "",
   });
-  const plan = plans.find((p) => p.name === form.plan)!;
-  const expiry = new Date(form.startDate);
-  expiry.setDate(expiry.getDate() + plan.days);
+  const plan = getMembershipPlan(form.plan);
+  const expiry = addPlanMonths(form.startDate, plan.months);
   const balance = plan.price - Number(form.amountPaid || 0);
 
   const set = (k: string, v: any) => setForm({ ...form, [k]: v });
@@ -153,10 +152,10 @@ function AddMember() {
             value={form.plan}
             onChange={(e) => {
               set("plan", e.target.value);
-              set("amountPaid", plans.find((p) => p.name === e.target.value)!.price);
+              set("amountPaid", getMembershipPlan(e.target.value).price);
             }}
           >
-            {plans.map((p) => <option key={p.name}>{p.name}</option>)}
+            {membershipPlans.map((p) => <option key={p.name}>{p.name}</option>)}
           </select>
         </Field>
         <div className="grid grid-cols-2 gap-3">
