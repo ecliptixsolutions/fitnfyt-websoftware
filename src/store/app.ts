@@ -531,7 +531,7 @@ export const useApp = create<State>()(
         set({ auth: null, authReady: true });
       },
       addMember: (m) => {
-        const memberId = id();
+        const memberId = m.id ?? id();
         set({
           members: [
             ...get().members,

@@ -64,23 +64,33 @@ async function requestOptional<T>(
 
 async function request<T>(tableAndQuery: string, init: RequestInit = {}): Promise<T> {
   if (!enabled) throw new Error("Supabase is not configured");
-  const accessToken = getStoredAuthSession()?.accessToken ?? SUPABASE_ANON_KEY;
-  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/${tableAndQuery}`, {
-    ...init,
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-      Prefer: "resolution=merge-duplicates,return=minimal",
-      ...(init.headers ?? {}),
-    },
-  });
+  const sessionToken = getStoredAuthSession()?.accessToken;
+  let response = await supabaseFetch(tableAndQuery, init, sessionToken ?? SUPABASE_ANON_KEY);
+  if (!response.ok && sessionToken && (response.status === 401 || response.status === 403)) {
+    console.warn(
+      `Supabase request returned ${response.status} with stored session token. Retrying with anon key.`,
+    );
+    response = await supabaseFetch(tableAndQuery, init, SUPABASE_ANON_KEY);
+  }
   if (!response.ok) {
     throw new Error(`Supabase request failed: ${response.status} ${await response.text()}`);
   }
   if (response.status === 204) return undefined as T;
   const text = await response.text();
   return text ? (JSON.parse(text) as T) : (undefined as T);
+}
+
+async function supabaseFetch(tableAndQuery: string, init: RequestInit, token: string) {
+  return fetch(`${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/${tableAndQuery}`, {
+    ...init,
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=minimal",
+      ...(init.headers ?? {}),
+    },
+  });
 }
 
 export async function loadSupabaseSnapshot(): Promise<Partial<Snapshot>> {
