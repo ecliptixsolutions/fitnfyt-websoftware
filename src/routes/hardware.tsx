@@ -10,10 +10,11 @@ import {
   Router,
   Trash2,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AppShell, Card } from "@/components/layout/AppShell";
 import { dmy } from "@/lib/format";
+import { loadUploadUsersQueue, type UploadUserQueueItem } from "@/lib/supabase-data";
 import { isRetiredBiometricDevice, useApp, type BiometricDevice } from "@/store/app";
 
 export const Route = createFileRoute("/hardware")({
@@ -35,6 +36,8 @@ function Hardware() {
   const testDevice = useApp((state) => state.testBiometricDevice);
   const syncDevice = useApp((state) => state.syncBiometricDevice);
   const [editing, setEditing] = useState<BiometricDevice | null>(null);
+  const [uploadQueue, setUploadQueue] = useState<UploadUserQueueItem[]>([]);
+  const [queueLoading, setQueueLoading] = useState(false);
   const [form, setForm] = useState({
     name: "",
     model: "Hikvision DS-K1T320EFWX",
@@ -46,6 +49,24 @@ function Hardware() {
     pollingIntervalSeconds: 30,
     fingerprintPath: "/doc/index.html#/dashboard",
   });
+
+  const refreshUploadQueue = async () => {
+    setQueueLoading(true);
+    try {
+      setUploadQueue(await loadUploadUsersQueue());
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not load upload users queue");
+    } finally {
+      setQueueLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshUploadQueue();
+    const interval = window.setInterval(refreshUploadQueue, 15000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const openForm = (device?: BiometricDevice) => {
     setEditing(device ?? null);
@@ -126,6 +147,59 @@ function Hardware() {
           value={attendance.filter((record) => record.source === "Biometric").length}
         />
       </div>
+
+      <Card className="mb-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold">Upload Users Queue</h2>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {queueLoading
+                ? "Refreshing..."
+                : `${uploadQueue.length} pending upload${uploadQueue.length === 1 ? "" : "s"}`}
+            </div>
+          </div>
+          <button onClick={refreshUploadQueue} className="subtle-button text-xs">
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </button>
+        </div>
+        {uploadQueue.length ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-border text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="py-2 pr-3 font-semibold">User</th>
+                  <th className="py-2 pr-3 font-semibold">Employee No</th>
+                  <th className="py-2 pr-3 font-semibold">Type</th>
+                  <th className="py-2 pr-3 font-semibold">Queued</th>
+                  <th className="py-2 font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {uploadQueue.map((item) => (
+                  <tr key={item.id} className="border-b border-border/50 last:border-0">
+                    <td className="py-3 pr-3 font-medium">{item.name}</td>
+                    <td className="py-3 pr-3 text-muted-foreground">{item.employeeNumber}</td>
+                    <td className="py-3 pr-3 capitalize text-muted-foreground">{item.subjectType}</td>
+                    <td className="py-3 pr-3 text-muted-foreground">
+                      {item.queuedAt
+                        ? `${dmy(item.queuedAt)} ${new Date(item.queuedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`
+                        : "-"}
+                    </td>
+                    <td className="py-3">
+                      <span className="status-badge status-expiring">{item.status}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-border p-5 text-center text-sm text-muted-foreground">
+            No users are waiting for device upload.
+          </div>
+        )}
+      </Card>
 
       {(editing || form.name || form.ipAddress) && (
         <Card className="mb-5">

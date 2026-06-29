@@ -37,7 +37,6 @@ function AddMember() {
     mode: "UPI",
     ref: "",
     locker: "",
-    enrollBiometric: true,
     employeeNumber: defaultEmployeeNumber(),
     cardNumber: "",
     faceImagePath: "",
@@ -55,16 +54,15 @@ function AddMember() {
     }
 
     const employeeNumber = form.employeeNumber.trim().toUpperCase();
-    if (form.enrollBiometric && !employeeNumber) {
+    if (!employeeNumber) {
       toast.error("Employee number is required for biometric enrollment");
       return;
     }
 
     setSaving(true);
     try {
-      const memberId = form.enrollBiometric ? employeeNumber : undefined;
       addMember({
-        id: memberId,
+        id: employeeNumber,
         name: form.name.trim(),
         phone: form.phone.trim(),
         email: form.email.trim() || undefined,
@@ -77,23 +75,19 @@ function AddMember() {
         branchId: currentBranch,
       });
 
-      if (form.enrollBiometric) {
-        await queueHikvisionEnrollment({
-          employeeNumber,
-          subjectId: employeeNumber,
-          subjectType: "member",
-          name: form.name.trim(),
-          cardNumber: form.cardNumber.trim() || undefined,
-          faceImagePath: form.faceImagePath.trim() || undefined,
-          validFrom: new Date(form.startDate).toISOString(),
-          validTo: expiry.toISOString(),
-          active: true,
-          branchId: currentBranch,
-        });
-        toast.success("Member added and queued for device enrollment");
-      } else {
-        toast.success("Member added");
-      }
+      await queueHikvisionEnrollment({
+        employeeNumber,
+        subjectId: employeeNumber,
+        subjectType: "member",
+        name: form.name.trim(),
+        cardNumber: form.cardNumber.trim() || undefined,
+        faceImagePath: form.faceImagePath.trim() || undefined,
+        validFrom: new Date(form.startDate).toISOString(),
+        validTo: expiry.toISOString(),
+        active: true,
+        branchId: currentBranch,
+      });
+      toast.success("Member added to Upload Users queue");
 
       if (andAnother) {
         setForm({
@@ -169,41 +163,27 @@ function AddMember() {
       </Card>
 
       <Card className="space-y-4 mb-4">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-primary">Biometric Enrollment</h3>
-          <label className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-primary">Biometric Enrollment</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Employee Number *">
             <input
-              type="checkbox"
-              checked={form.enrollBiometric}
-              onChange={(event) => set("enrollBiometric", event.target.checked)}
+              className="input-field mt-1 uppercase"
+              value={form.employeeNumber}
+              onChange={(event) => set("employeeNumber", event.target.value.toUpperCase())}
             />
-            Queue to device
-          </label>
+          </Field>
+          <Field label="Card Number">
+            <input className="input-field mt-1" value={form.cardNumber} onChange={(event) => set("cardNumber", event.target.value)} />
+          </Field>
         </div>
-        {form.enrollBiometric && (
-          <>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Employee Number *">
-                <input
-                  className="input-field mt-1 uppercase"
-                  value={form.employeeNumber}
-                  onChange={(event) => set("employeeNumber", event.target.value.toUpperCase())}
-                />
-              </Field>
-              <Field label="Card Number">
-                <input className="input-field mt-1" value={form.cardNumber} onChange={(event) => set("cardNumber", event.target.value)} />
-              </Field>
-            </div>
-            <Field label="Face Image Path">
-              <input
-                className="input-field mt-1"
-                placeholder="C:\\Users\\padar\\Pictures\\HikvisionFaces\\EMP002.jpg"
-                value={form.faceImagePath}
-                onChange={(event) => set("faceImagePath", event.target.value)}
-              />
-            </Field>
-          </>
-        )}
+        <Field label="Face Image Path">
+          <input
+            className="input-field mt-1"
+            placeholder="C:\\Users\\padar\\Pictures\\HikvisionFaces\\EMP002.jpg"
+            value={form.faceImagePath}
+            onChange={(event) => set("faceImagePath", event.target.value)}
+          />
+        </Field>
       </Card>
 
       <Card className="space-y-4 mb-4">

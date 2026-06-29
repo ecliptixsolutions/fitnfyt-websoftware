@@ -49,6 +49,15 @@ type HikvisionEnrollment = {
   branchId?: string;
 };
 
+export type UploadUserQueueItem = {
+  id: string;
+  employeeNumber: string;
+  name: string;
+  subjectType: "member" | "staff";
+  status: string;
+  queuedAt?: string;
+};
+
 async function requestOptional<T>(
   tableAndQuery: string,
   fallback: T,
@@ -223,6 +232,24 @@ export async function queueHikvisionEnrollment(enrollment: HikvisionEnrollment) 
       updated_at: new Date().toISOString(),
     }),
   });
+}
+
+export async function loadUploadUsersQueue(): Promise<UploadUserQueueItem[]> {
+  if (!enabled) return [];
+
+  const people = await requestOptional<any[]>(
+    "hikvision_people?select=employee_number,name,subject_type,pending_operation,updated_at&pending_operation=eq.Upsert&order=updated_at.asc",
+    [],
+  );
+
+  return people.map((person) => ({
+    id: person.employee_number,
+    employeeNumber: person.employee_number,
+    name: person.name ?? person.employee_number,
+    subjectType: person.subject_type ?? "member",
+    status: person.pending_operation ?? "Pending",
+    queuedAt: person.updated_at,
+  }));
 }
 export async function getReaderStatus() {
   return requestOptional<any[]>("biometric_devices?select=*&order=name.asc", []).then((rows) =>
