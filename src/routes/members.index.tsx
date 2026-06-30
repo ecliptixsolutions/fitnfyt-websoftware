@@ -44,8 +44,9 @@ function MembersList() {
   const [staffActive, setStaffActive] = useState("all");
   const fileInput = useRef<HTMLInputElement>(null);
   const today = new Date().toISOString().slice(0, 10);
+  const visibleMembers = members.filter((member) => member.status !== "inactive");
 
-  const list = members
+  const list = visibleMembers
     .filter((member) => {
       if (filter !== "all" && member.status !== filter) return false;
       if (plan !== "all" && member.plan !== plan) return false;
@@ -59,7 +60,7 @@ function MembersList() {
         return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
       return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
     });
-  const plans = [...new Set(members.map((member) => member.plan))];
+  const plans = [...new Set(visibleMembers.map((member) => member.plan))];
   const staffList = staff
     .filter((person) => staffActive === "all" || String(person.active) === staffActive)
     .filter((person) =>
@@ -71,13 +72,13 @@ function MembersList() {
   const removeMember = async (memberId: string, memberName: string) => {
     if (
       !confirm(
-        `Delete ${memberName}? This removes the member, payments, and attendance from this app.`,
+        `Delete ${memberName}? This will mark the member inactive and queue removal from the Hikvision device.`,
       )
     )
       return;
     deleteMember(memberId);
     await deleteMemberFromSupabase(memberId);
-    toast.success("Member deleted");
+    toast.success("Member marked inactive");
   };
 
   const removeStaff = async (staffId: string, staffName: string) => {
@@ -181,7 +182,7 @@ function MembersList() {
   return (
     <AppShell
       title="Members"
-      description={`${members.length} members and ${staff.length} staff profiles.`}
+      description={`${visibleMembers.length} members and ${staff.length} staff profiles.`}
       actions={actions}
     >
       <input
@@ -204,7 +205,7 @@ function MembersList() {
                   : "text-muted-foreground hover:bg-secondary"
               }`}
             >
-              {value === "members" ? `Members (${members.length})` : `Staff (${staff.length})`}
+              {value === "members" ? `Members (${visibleMembers.length})` : `Staff (${staff.length})`}
             </button>
           ))}
         </div>
@@ -240,8 +241,8 @@ function MembersList() {
                 {filters.map((value) => {
                   const count =
                     value === "all"
-                      ? members.length
-                      : members.filter((member) => member.status === value).length;
+                      ? visibleMembers.length
+                      : visibleMembers.filter((member) => member.status === value).length;
                   return (
                     <button
                       key={value}

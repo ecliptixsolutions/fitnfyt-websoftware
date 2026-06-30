@@ -17,7 +17,9 @@ function defaultEmployeeNumber() {
 }
 
 function EnrollmentPage() {
-  const members = useApp((state) => state.members);
+  const members = useApp((state) =>
+    state.members.filter((member) => member.status !== "inactive"),
+  );
   const currentBranch = useApp((state) => state.currentBranch);
   const [memberId, setMemberId] = useState("");
   const selectedMember = members.find((member) => member.id === memberId);

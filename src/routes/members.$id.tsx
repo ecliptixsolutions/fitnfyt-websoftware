@@ -103,13 +103,13 @@ function Detail() {
   const removeMember = async () => {
     if (
       !confirm(
-        `Delete ${member.name}? This removes the member, payments, and attendance from this app.`,
+        `Delete ${member.name}? This will mark the member inactive and queue removal from the Hikvision device.`,
       )
     )
       return;
     deleteMember(member.id);
     await deleteMemberFromSupabase(member.id);
-    toast.success("Member deleted");
+    toast.success("Member marked inactive");
     navigate({ to: "/members" });
   };
 

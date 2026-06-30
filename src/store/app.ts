@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import { clearStoredAuthSession, type AuthUser } from "@/lib/supabase-auth";
 
 export type Role = "owner" | "staff" | "member" | "super";
-export type Status = "active" | "expired" | "expiring" | "frozen";
+export type Status = "active" | "expired" | "expiring" | "frozen" | "inactive";
 
 export interface MemberDocument {
   id: string;

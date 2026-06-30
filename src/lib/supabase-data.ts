@@ -140,6 +140,7 @@ export async function loadSupabaseSnapshot(): Promise<Partial<Snapshot>> {
         String(row.name).trim().toLowerCase() === "test employee" ||
         rowTimestamp(row) >= CLIENT_CLEANUP_AT,
     )
+    .filter((row) => (row.status ?? "active") !== "inactive")
     .map((row) => {
       const isTestEmployee =
         String(row.id).toUpperCase() === "EMP001" ||
@@ -187,15 +188,20 @@ export async function loadSupabaseSnapshot(): Promise<Partial<Snapshot>> {
 export async function deleteMemberFromSupabase(memberId: string) {
   if (!enabled) return;
   const id = encodeURIComponent(memberId);
+  const updatedAt = new Date().toISOString();
   await Promise.all([
-    requestOptional(`attendance_records?subject_type=eq.member&subject_id=eq.${id}`, undefined, {
-      method: "DELETE",
+    requestOptional(`members?id=eq.${id}`, undefined, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "inactive", updated_at: updatedAt }),
     }),
-    requestOptional(`payments?member_id=eq.${id}`, undefined, { method: "DELETE" }),
     requestOptional(`hikvision_people?subject_type=eq.member&subject_id=eq.${id}`, undefined, {
-      method: "DELETE",
+      method: "PATCH",
+      body: JSON.stringify({
+        active: false,
+        pending_operation: "Upsert",
+        updated_at: updatedAt,
+      }),
     }),
-    requestOptional(`members?id=eq.${id}`, undefined, { method: "DELETE" }),
   ]);
 }
 
