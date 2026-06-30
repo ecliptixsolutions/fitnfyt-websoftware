@@ -17,11 +17,13 @@ function defaultEmployeeNumber() {
 }
 
 function EnrollmentPage() {
-  const members = useApp((state) =>
-    state.members.filter((member) => member.status !== "inactive"),
-  );
+  const allMembers = useApp((state) => state.members);
   const currentBranch = useApp((state) => state.currentBranch);
   const [memberId, setMemberId] = useState("");
+  const members = useMemo(
+    () => allMembers.filter((member) => member.status !== "inactive"),
+    [allMembers],
+  );
   const selectedMember = members.find((member) => member.id === memberId);
   const [form, setForm] = useState({
     employeeNumber: defaultEmployeeNumber(),
