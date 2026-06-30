@@ -6,9 +6,9 @@ import {
   getMembershipPlan,
   membershipPlans,
 } from "@/lib/membership-plans";
-import { queueHikvisionEnrollment } from "@/lib/supabase-data";
-import { useApp } from "@/store/app";
-import { useState, type ReactNode } from "react";
+import { queueHikvisionEnrollment, saveMemberToSupabase } from "@/lib/supabase-data";
+import { useApp, type Member } from "@/store/app";
+import { useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/members/add")({
@@ -18,6 +18,57 @@ export const Route = createFileRoute("/members/add")({
 
 function defaultEmployeeNumber() {
   return `EMP${new Date().getTime().toString().slice(-6)}`;
+}
+
+const maxFaceImageBytes = 199 * 1024;
+
+function blobToDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("Face image could not be loaded"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function compressFaceImage(file: File) {
+  const bitmap = await createImageBitmap(file);
+  try {
+    let maxSide = 900;
+    let quality = 0.86;
+
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Face image could not be processed");
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", quality),
+      );
+      if (!blob) throw new Error("Face image could not be compressed");
+      if (blob.size <= maxFaceImageBytes || attempt === 11) {
+        if (blob.size > maxFaceImageBytes) {
+          throw new Error("Face image is still above 199 KB after compression");
+        }
+        return {
+          dataUrl: await blobToDataUrl(blob),
+          size: blob.size,
+        };
+      }
+
+      quality = Math.max(0.45, quality - 0.08);
+      if (quality <= 0.5) maxSide = Math.max(360, Math.round(maxSide * 0.82));
+    }
+  } finally {
+    bitmap.close();
+  }
+
+  throw new Error("Face image could not be compressed");
 }
 
 function AddMember() {
@@ -39,13 +90,38 @@ function AddMember() {
     locker: "",
     employeeNumber: defaultEmployeeNumber(),
     cardNumber: "",
-    faceImagePath: "",
+    faceImageData: "",
+    faceImageName: "",
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const plan = getMembershipPlan(form.plan);
   const expiry = addPlanMonths(form.startDate, plan.months);
   const balance = plan.price - Number(form.amountPaid || 0);
 
   const set = (k: string, v: any) => setForm({ ...form, [k]: v });
+
+  const selectFaceImage = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Select a valid face image");
+      return;
+    }
+    try {
+      const compressed = await compressFaceImage(file);
+      setForm((current) => ({
+        ...current,
+        faceImageData: compressed.dataUrl,
+        faceImageName: `${file.name} (${Math.ceil(compressed.size / 1024)} KB)`,
+      }));
+      toast.success("Face image compressed below 199 KB");
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : "Face image could not be compressed");
+      setForm((current) => ({ ...current, faceImageData: "", faceImageName: "" }));
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const save = async (andAnother: boolean) => {
     if (!form.name.trim() || !form.phone.trim()) {
@@ -61,7 +137,7 @@ function AddMember() {
 
     setSaving(true);
     try {
-      addMember({
+      const member: Member = {
         id: employeeNumber,
         name: form.name.trim(),
         phone: form.phone.trim(),
@@ -73,7 +149,14 @@ function AddMember() {
         amountPaid: Number(form.amountPaid),
         totalAmount: plan.price,
         branchId: currentBranch,
-      });
+        checkIns: [],
+        streak: 0,
+        documents: [],
+        workoutPlan: [],
+      };
+
+      await saveMemberToSupabase(member);
+      addMember(member);
 
       await queueHikvisionEnrollment({
         employeeNumber,
@@ -81,7 +164,7 @@ function AddMember() {
         subjectType: "member",
         name: form.name.trim(),
         cardNumber: form.cardNumber.trim() || undefined,
-        faceImagePath: form.faceImagePath.trim() || undefined,
+        faceImageData: form.faceImageData || undefined,
         validFrom: new Date(form.startDate).toISOString(),
         validTo: expiry.toISOString(),
         active: true,
@@ -96,9 +179,11 @@ function AddMember() {
           phone: "",
           email: "",
           cardNumber: "",
-          faceImagePath: "",
+          faceImageData: "",
+          faceImageName: "",
           employeeNumber: defaultEmployeeNumber(),
         });
+        if (fileInputRef.current) fileInputRef.current.value = "";
       } else {
         navigate({ to: "/members" });
       }
@@ -176,13 +261,27 @@ function AddMember() {
             <input className="input-field mt-1" value={form.cardNumber} onChange={(event) => set("cardNumber", event.target.value)} />
           </Field>
         </div>
-        <Field label="Face Image Path">
+        <Field label="Face Image">
           <input
+            ref={fileInputRef}
             className="input-field mt-1"
-            placeholder="C:\\Users\\padar\\Pictures\\HikvisionFaces\\EMP002.jpg"
-            value={form.faceImagePath}
-            onChange={(event) => set("faceImagePath", event.target.value)}
+            type="file"
+            accept="image/*"
+            onChange={selectFaceImage}
           />
+          {form.faceImageData && (
+            <div className="mt-3 flex items-center gap-3 rounded-md border border-border p-3">
+              <img
+                src={form.faceImageData}
+                alt=""
+                className="h-16 w-16 rounded-md object-cover"
+              />
+              <div className="min-w-0 text-xs text-muted-foreground">
+                <div className="truncate font-semibold text-foreground">{form.faceImageName}</div>
+                <div>Saved with upload queue</div>
+              </div>
+            </div>
+          )}
         </Field>
       </Card>
 

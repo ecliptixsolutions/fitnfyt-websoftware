@@ -18,6 +18,10 @@ const SUPABASE_ANON_KEY =
 const enabled = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 const CLIENT_CLEANUP_AT = new Date("2026-06-27T00:00:00+05:30").getTime();
 
+function rowTimestamp(row: any) {
+  return new Date(row.created_at ?? row.updated_at ?? 0).getTime();
+}
+
 type Snapshot = {
   members: Member[];
   staff: Staff[];
@@ -43,6 +47,7 @@ type HikvisionEnrollment = {
   name: string;
   cardNumber?: string;
   faceImagePath?: string;
+  faceImageData?: string;
   validFrom?: string;
   validTo?: string;
   active?: boolean;
@@ -125,7 +130,7 @@ export async function loadSupabaseSnapshot(): Promise<Partial<Snapshot>> {
   const subjectAliases = buildSubjectAliases(hikvisionPeople);
   const attendanceRecords = normalizeAttendanceRecords(
     attendance
-      .filter((row) => new Date(row.punch_in ?? row.created_at ?? 0).getTime() >= CLIENT_CLEANUP_AT)
+      .filter((row) => new Date(row.punch_in ?? row.created_at ?? row.updated_at ?? 0).getTime() >= CLIENT_CLEANUP_AT)
       .map((row) => fromAttendanceRow(row, subjectAliases)),
   );
   const memberRows = members
@@ -133,7 +138,7 @@ export async function loadSupabaseSnapshot(): Promise<Partial<Snapshot>> {
       (row) =>
         String(row.id).toUpperCase() === "EMP001" ||
         String(row.name).trim().toLowerCase() === "test employee" ||
-        new Date(row.created_at ?? 0).getTime() >= CLIENT_CLEANUP_AT,
+        rowTimestamp(row) >= CLIENT_CLEANUP_AT,
     )
     .map((row) => {
       const isTestEmployee =
@@ -161,7 +166,7 @@ export async function loadSupabaseSnapshot(): Promise<Partial<Snapshot>> {
       .filter(
         (row) =>
           !["s1", "s2", "s3", "s4", "s5", "s6"].includes(String(row.id)) ||
-          new Date(row.created_at ?? 0).getTime() >= CLIENT_CLEANUP_AT,
+          rowTimestamp(row) >= CLIENT_CLEANUP_AT,
       )
       .map(fromStaffRow),
     attendance: attendanceRecords,
@@ -169,7 +174,7 @@ export async function loadSupabaseSnapshot(): Promise<Partial<Snapshot>> {
       .filter(
         (row) =>
           !["l1", "l2", "l3", "l4", "l5"].includes(String(row.id)) ||
-          new Date(row.created_at ?? 0).getTime() >= CLIENT_CLEANUP_AT,
+          rowTimestamp(row) >= CLIENT_CLEANUP_AT,
       )
       .map(fromLeadRow),
     biometricDevices: biometricDevices
@@ -213,6 +218,11 @@ export async function deleteStaffFromSupabase(staffId: string) {
   await requestOptional(`staff?id=eq.${id}`, undefined, { method: "DELETE" });
 }
 
+export async function saveMemberToSupabase(member: Member) {
+  if (!enabled) return;
+  await upsert("members", [toMemberRow(member)], "id");
+}
+
 export async function queueHikvisionEnrollment(enrollment: HikvisionEnrollment) {
   if (!enabled) return;
   await request("hikvision_people?on_conflict=employee_number", {
@@ -223,7 +233,7 @@ export async function queueHikvisionEnrollment(enrollment: HikvisionEnrollment) 
       subject_type: enrollment.subjectType,
       name: enrollment.name,
       card_number: enrollment.cardNumber || null,
-      face_image_path: enrollment.faceImagePath || null,
+      face_image_path: enrollment.faceImageData || enrollment.faceImagePath || null,
       valid_from: enrollment.validFrom || null,
       valid_to: enrollment.validTo || null,
       active: enrollment.active ?? true,
