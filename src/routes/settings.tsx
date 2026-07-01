@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   Bell,
-  Building2,
   Cpu,
   Crown,
   Download,
@@ -199,12 +198,6 @@ function Settings() {
 
       <Card className="mb-5 !p-2">
         {[
-          {
-            to: "/branches",
-            icon: Building2,
-            label: "Branch Management",
-            detail: `${branches.length} branches`,
-          },
           {
             to: "/members",
             icon: Users,

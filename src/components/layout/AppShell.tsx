@@ -1,7 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
-  Building2,
   CalendarCheck,
   ChevronRight,
   CircleDollarSign,
@@ -34,7 +33,6 @@ const navItems = [
   { to: "/finance", label: "Finance", icon: CircleDollarSign },
   { to: "/leads", label: "Leads", icon: Sparkles },
   { to: "/messages", label: "Messages", icon: MessageCircle },
-  { to: "/branches", label: "Branches", icon: Building2 },
   { to: "/hardware", label: "Biometric", icon: Cpu },
   { to: "/reader-status", label: "Reader Status", icon: Clock3 },
   { to: "/enrollment", label: "Enrollment", icon: UserRound },

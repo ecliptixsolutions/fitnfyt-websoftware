@@ -26,14 +26,12 @@ import { Route as HardwareRouteImport } from './routes/hardware'
 import { Route as FinanceRouteImport } from './routes/finance'
 import { Route as EnrollmentRouteImport } from './routes/enrollment'
 import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as BranchesRouteImport } from './routes/branches'
 import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as MembersIndexRouteImport } from './routes/members.index'
 import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as FinanceIndexRouteImport } from './routes/finance.index'
-import { Route as BranchesIndexRouteImport } from './routes/branches.index'
 import { Route as StaffPayrollRouteImport } from './routes/staff.payroll'
 import { Route as StaffAddRouteImport } from './routes/staff.add'
 import { Route as StaffIdRouteImport } from './routes/staff.$id'
@@ -48,7 +46,6 @@ import { Route as LeadsIdRouteImport } from './routes/leads.$id'
 import { Route as FinanceRecordRouteImport } from './routes/finance.record'
 import { Route as FinancePaymentsRouteImport } from './routes/finance.payments'
 import { Route as FinanceDuesRouteImport } from './routes/finance.dues'
-import { Route as BranchesIdRouteImport } from './routes/branches.$id'
 
 const UserAccessRoute = UserAccessRouteImport.update({
   id: '/user-access',
@@ -135,11 +132,6 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BranchesRoute = BranchesRouteImport.update({
-  id: '/branches',
-  path: '/branches',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AttendanceRoute = AttendanceRouteImport.update({
   id: '/attendance',
   path: '/attendance',
@@ -169,11 +161,6 @@ const FinanceIndexRoute = FinanceIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => FinanceRoute,
-} as any)
-const BranchesIndexRoute = BranchesIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => BranchesRoute,
 } as any)
 const StaffPayrollRoute = StaffPayrollRouteImport.update({
   id: '/payroll',
@@ -245,16 +232,10 @@ const FinanceDuesRoute = FinanceDuesRouteImport.update({
   path: '/dues',
   getParentRoute: () => FinanceRoute,
 } as any)
-const BranchesIdRoute = BranchesIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => BranchesRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/attendance': typeof AttendanceRoute
-  '/branches': typeof BranchesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/enrollment': typeof EnrollmentRoute
   '/finance': typeof FinanceRouteWithChildren
@@ -272,7 +253,6 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/staff': typeof StaffRouteWithChildren
   '/user-access': typeof UserAccessRoute
-  '/branches/$id': typeof BranchesIdRoute
   '/finance/dues': typeof FinanceDuesRoute
   '/finance/payments': typeof FinancePaymentsRoute
   '/finance/record': typeof FinanceRecordRoute
@@ -287,7 +267,6 @@ export interface FileRoutesByFullPath {
   '/staff/$id': typeof StaffIdRoute
   '/staff/add': typeof StaffAddRoute
   '/staff/payroll': typeof StaffPayrollRoute
-  '/branches/': typeof BranchesIndexRoute
   '/finance/': typeof FinanceIndexRoute
   '/leads/': typeof LeadsIndexRoute
   '/members/': typeof MembersIndexRoute
@@ -309,7 +288,6 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/user-access': typeof UserAccessRoute
-  '/branches/$id': typeof BranchesIdRoute
   '/finance/dues': typeof FinanceDuesRoute
   '/finance/payments': typeof FinancePaymentsRoute
   '/finance/record': typeof FinanceRecordRoute
@@ -324,7 +302,6 @@ export interface FileRoutesByTo {
   '/staff/$id': typeof StaffIdRoute
   '/staff/add': typeof StaffAddRoute
   '/staff/payroll': typeof StaffPayrollRoute
-  '/branches': typeof BranchesIndexRoute
   '/finance': typeof FinanceIndexRoute
   '/leads': typeof LeadsIndexRoute
   '/members': typeof MembersIndexRoute
@@ -334,7 +311,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/attendance': typeof AttendanceRoute
-  '/branches': typeof BranchesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/enrollment': typeof EnrollmentRoute
   '/finance': typeof FinanceRouteWithChildren
@@ -352,7 +328,6 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/staff': typeof StaffRouteWithChildren
   '/user-access': typeof UserAccessRoute
-  '/branches/$id': typeof BranchesIdRoute
   '/finance/dues': typeof FinanceDuesRoute
   '/finance/payments': typeof FinancePaymentsRoute
   '/finance/record': typeof FinanceRecordRoute
@@ -367,7 +342,6 @@ export interface FileRoutesById {
   '/staff/$id': typeof StaffIdRoute
   '/staff/add': typeof StaffAddRoute
   '/staff/payroll': typeof StaffPayrollRoute
-  '/branches/': typeof BranchesIndexRoute
   '/finance/': typeof FinanceIndexRoute
   '/leads/': typeof LeadsIndexRoute
   '/members/': typeof MembersIndexRoute
@@ -378,7 +352,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/attendance'
-    | '/branches'
     | '/dashboard'
     | '/enrollment'
     | '/finance'
@@ -396,7 +369,6 @@ export interface FileRouteTypes {
     | '/settings'
     | '/staff'
     | '/user-access'
-    | '/branches/$id'
     | '/finance/dues'
     | '/finance/payments'
     | '/finance/record'
@@ -411,7 +383,6 @@ export interface FileRouteTypes {
     | '/staff/$id'
     | '/staff/add'
     | '/staff/payroll'
-    | '/branches/'
     | '/finance/'
     | '/leads/'
     | '/members/'
@@ -433,7 +404,6 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/settings'
     | '/user-access'
-    | '/branches/$id'
     | '/finance/dues'
     | '/finance/payments'
     | '/finance/record'
@@ -448,7 +418,6 @@ export interface FileRouteTypes {
     | '/staff/$id'
     | '/staff/add'
     | '/staff/payroll'
-    | '/branches'
     | '/finance'
     | '/leads'
     | '/members'
@@ -457,7 +426,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/attendance'
-    | '/branches'
     | '/dashboard'
     | '/enrollment'
     | '/finance'
@@ -475,7 +443,6 @@ export interface FileRouteTypes {
     | '/settings'
     | '/staff'
     | '/user-access'
-    | '/branches/$id'
     | '/finance/dues'
     | '/finance/payments'
     | '/finance/record'
@@ -490,7 +457,6 @@ export interface FileRouteTypes {
     | '/staff/$id'
     | '/staff/add'
     | '/staff/payroll'
-    | '/branches/'
     | '/finance/'
     | '/leads/'
     | '/members/'
@@ -500,7 +466,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AttendanceRoute: typeof AttendanceRoute
-  BranchesRoute: typeof BranchesRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   EnrollmentRoute: typeof EnrollmentRoute
   FinanceRoute: typeof FinanceRouteWithChildren
@@ -641,13 +606,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/branches': {
-      id: '/branches'
-      path: '/branches'
-      fullPath: '/branches'
-      preLoaderRoute: typeof BranchesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/attendance': {
       id: '/attendance'
       path: '/attendance'
@@ -689,13 +647,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/finance/'
       preLoaderRoute: typeof FinanceIndexRouteImport
       parentRoute: typeof FinanceRoute
-    }
-    '/branches/': {
-      id: '/branches/'
-      path: '/'
-      fullPath: '/branches/'
-      preLoaderRoute: typeof BranchesIndexRouteImport
-      parentRoute: typeof BranchesRoute
     }
     '/staff/payroll': {
       id: '/staff/payroll'
@@ -795,29 +746,8 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FinanceDuesRouteImport
       parentRoute: typeof FinanceRoute
     }
-    '/branches/$id': {
-      id: '/branches/$id'
-      path: '/$id'
-      fullPath: '/branches/$id'
-      preLoaderRoute: typeof BranchesIdRouteImport
-      parentRoute: typeof BranchesRoute
-    }
   }
 }
-
-interface BranchesRouteChildren {
-  BranchesIdRoute: typeof BranchesIdRoute
-  BranchesIndexRoute: typeof BranchesIndexRoute
-}
-
-const BranchesRouteChildren: BranchesRouteChildren = {
-  BranchesIdRoute: BranchesIdRoute,
-  BranchesIndexRoute: BranchesIndexRoute,
-}
-
-const BranchesRouteWithChildren = BranchesRoute._addFileChildren(
-  BranchesRouteChildren,
-)
 
 interface FinanceRouteChildren {
   FinanceDuesRoute: typeof FinanceDuesRoute
@@ -901,7 +831,6 @@ const StaffRouteWithChildren = StaffRoute._addFileChildren(StaffRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AttendanceRoute: AttendanceRoute,
-  BranchesRoute: BranchesRouteWithChildren,
   DashboardRoute: DashboardRoute,
   EnrollmentRoute: EnrollmentRoute,
   FinanceRoute: FinanceRouteWithChildren,
