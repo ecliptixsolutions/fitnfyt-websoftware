@@ -13,9 +13,13 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { loadSupabaseSnapshot, queueHikvisionEnrollment } from "@/lib/supabase-data";
+import {
+  loadGymSnapPeople,
+  queueHikvisionEnrollment,
+  type GymSnapPerson,
+} from "@/lib/supabase-data";
 import { signInWithSupabase, signOutSupabase, type AuthUser } from "@/lib/supabase-auth";
-import { useApp, type Member, type Role, type Staff } from "@/store/app";
+import { useApp, type Role } from "@/store/app";
 
 export const Route = createFileRoute("/gymsnap")({
   head: () => ({
@@ -23,15 +27,6 @@ export const Route = createFileRoute("/gymsnap")({
   }),
   component: GymSnap,
 });
-
-type Person = {
-  id: string;
-  name: string;
-  phone: string;
-  type: "member" | "staff";
-  detail: string;
-  branchId?: string;
-};
 
 type InstallPrompt = Event & {
   prompt: () => Promise<void>;
@@ -162,10 +157,9 @@ function GymSnapWorkspace({
   onLogout: () => void;
 }) {
   const auth = useApp((state) => state.auth);
-  const members = useApp((state) => state.members);
-  const staff = useApp((state) => state.staff);
+  const [people, setPeople] = useState<GymSnapPerson[]>([]);
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<Person | null>(null);
+  const [selected, setSelected] = useState<GymSnapPerson | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -173,14 +167,6 @@ function GymSnapWorkspace({
   const [cameraOpen, setCameraOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-
-  const people = useMemo(
-    () => [
-      ...members.filter((item) => item.status !== "inactive").map(memberToPerson),
-      ...staff.filter((item) => item.active).map(staffToPerson),
-    ],
-    [members, staff],
-  );
 
   const results = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -197,18 +183,13 @@ function GymSnapWorkspace({
   const refresh = useCallback(async (quiet = false) => {
     if (!quiet) setSyncing(true);
     try {
-      const snapshot = await loadSupabaseSnapshot();
-      useApp.setState((state) => ({ ...state, ...snapshot }));
+      const latest = await loadGymSnapPeople();
+      setPeople(latest);
       setLastSync(new Date());
       setSelected((current) => {
         if (!current) return null;
-        const latestMembers = snapshot.members ?? useApp.getState().members;
-        const latestStaff = snapshot.staff ?? useApp.getState().staff;
         return (
-          [
-            ...latestMembers.filter((item) => item.status !== "inactive").map(memberToPerson),
-            ...latestStaff.filter((item) => item.active).map(staffToPerson),
-          ].find((person) => person.id === current.id && person.type === current.type) ?? null
+          latest.find((person) => person.id === current.id && person.type === current.type) ?? null
         );
       });
     } catch (error) {
@@ -376,8 +357,8 @@ function GymSnapWorkspace({
             />
           </div>
           <div className="mt-3 flex items-center justify-between text-xs text-zinc-500">
-            <span>{members.filter((item) => item.status !== "inactive").length} members</span>
-            <span>{staff.filter((item) => item.active).length} staff</span>
+            <span>{people.filter((item) => item.type === "member").length} members</span>
+            <span>{people.filter((item) => item.type === "staff").length} staff</span>
           </div>
         </section>
 
@@ -518,28 +499,6 @@ function GymSnapLoading() {
       <RefreshCw className="h-7 w-7 animate-spin text-[#b7f34a]" />
     </main>
   );
-}
-
-function memberToPerson(member: Member): Person {
-  return {
-    id: member.id,
-    name: member.name,
-    phone: member.phone,
-    type: "member",
-    detail: "Member",
-    branchId: member.branchId,
-  };
-}
-
-function staffToPerson(person: Staff): Person {
-  return {
-    id: person.id,
-    name: person.name,
-    phone: person.phone,
-    type: "staff",
-    detail: person.role || "Staff",
-    branchId: person.branchId,
-  };
 }
 
 function compressImage(file: File) {
