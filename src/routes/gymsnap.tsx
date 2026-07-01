@@ -1,10 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
+import Cropper, { type Area, type Point } from "react-easy-crop";
 import {
   Camera,
   CheckCircle2,
+  Crop,
   Download,
   LogOut,
   RefreshCw,
+  RotateCcw,
+  RotateCw,
   Search,
   Share2,
   SquarePlus,
@@ -163,6 +167,13 @@ function GymSnapWorkspace({
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<GymSnapPerson | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
+  const [cropSource, setCropSource] = useState<string | null>(null);
+  const [cropOpen, setCropOpen] = useState(false);
+  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [croppedArea, setCroppedArea] = useState<Area | null>(null);
+  const [cropping, setCropping] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
@@ -229,7 +240,33 @@ function GymSnapWorkspace({
       toast.error("Choose an image file");
       return;
     }
-    setPhoto(await compressImage(file));
+    try {
+      const normalized = await normalizeImageOrientation(file);
+      setCropSource(normalized);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setRotation(0);
+      setCroppedArea(null);
+      setCropOpen(true);
+    } catch (error) {
+      console.error(error);
+      toast.error("The photo could not be opened");
+    }
+  };
+
+  const applyCrop = async () => {
+    if (!cropSource || !croppedArea) return;
+    setCropping(true);
+    try {
+      setPhoto(await cropImage(cropSource, croppedArea, rotation));
+      setCropOpen(false);
+      toast.success("Photo cropped");
+    } catch (error) {
+      console.error(error);
+      toast.error("The photo could not be cropped");
+    } finally {
+      setCropping(false);
+    }
   };
 
   const save = async () => {
@@ -248,6 +285,7 @@ function GymSnapWorkspace({
       });
       toast.success("Photo saved and queued for the Hikvision device");
       setPhoto(null);
+      setCropSource(null);
     } catch (error) {
       console.error(error);
       toast.error("Photo could not be saved");
@@ -270,8 +308,14 @@ function GymSnapWorkspace({
   };
 
   return (
-    <main className="min-h-screen bg-[#090b0d] pb-28 text-white">
-      <header className="sticky top-0 z-20 border-b border-zinc-800 bg-[#090b0d]/95 px-4 py-3 backdrop-blur">
+    <main
+      className="min-h-screen bg-[#090b0d] text-white"
+      style={{ paddingBottom: "calc(7rem + env(safe-area-inset-bottom))" }}
+    >
+      <header
+        className="sticky top-0 z-20 border-b border-zinc-800 bg-[#090b0d]/95 px-4 pb-3 backdrop-blur"
+        style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+      >
         <div className="mx-auto flex max-w-3xl items-center gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-[#b7f34a] text-black">
             <Camera className="h-5 w-5" />
@@ -341,6 +385,7 @@ function GymSnapWorkspace({
                 onClick={() => {
                   setSelected(person);
                   setPhoto(null);
+                  setCropSource(null);
                 }}
               >
                 <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-zinc-800">
@@ -384,9 +429,19 @@ function GymSnapWorkspace({
                 <button
                   className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-black/80"
                   aria-label="Remove photo"
-                  onClick={() => setPhoto(null)}
+                  onClick={() => {
+                    setPhoto(null);
+                    setCropSource(null);
+                  }}
                 >
                   <X className="h-5 w-5" />
+                </button>
+                <button
+                  className="absolute bottom-3 left-1/2 flex h-11 -translate-x-1/2 items-center gap-2 rounded-md bg-black/80 px-4 text-sm font-bold"
+                  onClick={() => setCropOpen(true)}
+                >
+                  <Crop className="h-4 w-4" />
+                  Crop Photo
                 </button>
               </div>
             ) : (
@@ -417,7 +472,10 @@ function GymSnapWorkspace({
       </div>
 
       {selected && photo && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-800 bg-[#090b0d] p-4">
+        <div
+          className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-800 bg-[#090b0d] px-4 pt-4"
+          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        >
           <button
             className="mx-auto flex h-14 w-full max-w-3xl items-center justify-center gap-2 rounded-md bg-[#b7f34a] font-black text-black disabled:opacity-60"
             disabled={saving}
@@ -430,6 +488,92 @@ function GymSnapWorkspace({
             )}
             {saving ? "Saving..." : "Save and Send to Device"}
           </button>
+        </div>
+      )}
+
+      {cropOpen && cropSource && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-[#090b0d] text-white"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="crop-title"
+        >
+          <header
+            className="flex items-center gap-3 border-b border-zinc-800 px-4 pb-3"
+            style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+          >
+            <button
+              className="grid h-10 w-10 place-items-center rounded-md border border-zinc-700"
+              aria-label="Cancel cropping"
+              onClick={() => setCropOpen(false)}
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="min-w-0 flex-1">
+              <h2 id="crop-title" className="font-black">
+                Crop Photo
+              </h2>
+              <p className="text-xs text-zinc-400">Keep the face centered inside the square.</p>
+            </div>
+            <button
+              className="h-10 rounded-md bg-[#b7f34a] px-4 text-sm font-black text-black disabled:opacity-60"
+              disabled={!croppedArea || cropping}
+              onClick={() => void applyCrop()}
+            >
+              {cropping ? "Applying..." : "Done"}
+            </button>
+          </header>
+
+          <div className="relative min-h-0 flex-1 bg-black">
+            <Cropper
+              image={cropSource}
+              crop={crop}
+              zoom={zoom}
+              rotation={rotation}
+              aspect={1}
+              cropShape="rect"
+              showGrid
+              objectFit="contain"
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onRotationChange={setRotation}
+              onCropComplete={(_, pixels) => setCroppedArea(pixels)}
+            />
+          </div>
+
+          <div
+            className="space-y-4 border-t border-zinc-800 bg-zinc-950 px-4 pt-4"
+            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          >
+            <label className="block">
+              <span className="mb-2 block text-xs font-bold uppercase text-zinc-400">Zoom</span>
+              <input
+                className="w-full accent-[#b7f34a]"
+                type="range"
+                min="1"
+                max="3"
+                step="0.01"
+                value={zoom}
+                onChange={(event) => setZoom(Number(event.target.value))}
+              />
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                className="flex h-12 items-center justify-center gap-2 rounded-md border border-zinc-700 font-bold"
+                onClick={() => setRotation((value) => value - 90)}
+              >
+                <RotateCcw className="h-5 w-5" />
+                Rotate left
+              </button>
+              <button
+                className="flex h-12 items-center justify-center gap-2 rounded-md border border-zinc-700 font-bold"
+                onClick={() => setRotation((value) => value + 90)}
+              >
+                <RotateCw className="h-5 w-5" />
+                Rotate right
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -510,39 +654,93 @@ function GymSnapLoading() {
   );
 }
 
-function compressImage(file: File) {
+async function normalizeImageOrientation(file: File) {
+  if ("createImageBitmap" in window) {
+    try {
+      const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+      const maxDimension = 1800;
+      const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Image could not be processed");
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      bitmap.close();
+      return canvas.toDataURL("image/jpeg", 0.92);
+    } catch (error) {
+      console.warn("ImageBitmap orientation normalization unavailable", error);
+    }
+  }
+
   return new Promise<string>((resolve, reject) => {
     const image = new Image();
     const objectUrl = URL.createObjectURL(file);
     image.onload = () => {
-      const size = Math.min(image.naturalWidth, image.naturalHeight);
+      const maxDimension = 1800;
+      const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
       const canvas = document.createElement("canvas");
-      canvas.width = 900;
-      canvas.height = 900;
+      canvas.width = Math.round(image.naturalWidth * scale);
+      canvas.height = Math.round(image.naturalHeight * scale);
       const context = canvas.getContext("2d");
       if (!context) {
         URL.revokeObjectURL(objectUrl);
         reject(new Error("Image could not be processed"));
         return;
       }
-      context.drawImage(
-        image,
-        (image.naturalWidth - size) / 2,
-        (image.naturalHeight - size) / 2,
-        size,
-        size,
-        0,
-        0,
-        900,
-        900,
-      );
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
       URL.revokeObjectURL(objectUrl);
-      resolve(canvas.toDataURL("image/jpeg", 0.88));
+      resolve(canvas.toDataURL("image/jpeg", 0.92));
     };
     image.onerror = () => {
       URL.revokeObjectURL(objectUrl);
       reject(new Error("Image could not be opened"));
     };
     image.src = objectUrl;
+  });
+}
+
+async function cropImage(source: string, area: Area, rotation: number) {
+  const image = await loadImage(source);
+  const radians = (rotation * Math.PI) / 180;
+  const sin = Math.abs(Math.sin(radians));
+  const cos = Math.abs(Math.cos(radians));
+  const width = Math.round(image.naturalWidth * cos + image.naturalHeight * sin);
+  const height = Math.round(image.naturalWidth * sin + image.naturalHeight * cos);
+  const rotated = document.createElement("canvas");
+  rotated.width = width;
+  rotated.height = height;
+  const rotatedContext = rotated.getContext("2d");
+  if (!rotatedContext) throw new Error("Crop canvas is unavailable");
+
+  rotatedContext.translate(width / 2, height / 2);
+  rotatedContext.rotate(radians);
+  rotatedContext.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
+
+  const output = document.createElement("canvas");
+  output.width = 900;
+  output.height = 900;
+  const outputContext = output.getContext("2d");
+  if (!outputContext) throw new Error("Output canvas is unavailable");
+  outputContext.drawImage(
+    rotated,
+    area.x,
+    area.y,
+    area.width,
+    area.height,
+    0,
+    0,
+    output.width,
+    output.height,
+  );
+  return output.toDataURL("image/jpeg", 0.9);
+}
+
+function loadImage(source: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Image could not be loaded"));
+    image.src = source;
   });
 }

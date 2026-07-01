@@ -61,7 +61,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "Complete gym management platform for Indian gym owners." },
       { name: "theme-color", content: "#0c0909" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black" },
       { name: "apple-mobile-web-app-title", content: "GymSnap" },
       { property: "og:title", content: "Fit Force Gym â€” Gym Management" },
       {
