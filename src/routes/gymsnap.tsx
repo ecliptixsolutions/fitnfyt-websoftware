@@ -13,7 +13,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   loadGymSnapPeople,
@@ -166,11 +166,8 @@ function GymSnapWorkspace({
   const [syncing, setSyncing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
-  const [cameraOpen, setCameraOpen] = useState(false);
   const [installHelpOpen, setInstallHelpOpen] = useState(false);
   const [installed, setInstalled] = useState(false);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     const standalone =
@@ -225,57 +222,6 @@ function GymSnapWorkspace({
       window.removeEventListener("online", refreshVisible);
     };
   }, [refresh]);
-
-  const stopCamera = useCallback(() => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    setCameraOpen(false);
-  }, []);
-
-  useEffect(() => stopCamera, [stopCamera]);
-
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: { facingMode: "user", width: { ideal: 1080 }, height: { ideal: 1080 } },
-      });
-      streamRef.current = stream;
-      setCameraOpen(true);
-      requestAnimationFrame(() => {
-        if (!videoRef.current) return;
-        videoRef.current.srcObject = stream;
-        void videoRef.current.play();
-      });
-    } catch (error) {
-      console.error(error);
-      toast.error("Allow camera access and try again");
-    }
-  };
-
-  const capture = async () => {
-    const video = videoRef.current;
-    if (!video?.videoWidth) return;
-    const canvas = document.createElement("canvas");
-    const size = Math.min(video.videoWidth, video.videoHeight);
-    canvas.width = 900;
-    canvas.height = 900;
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    context.drawImage(
-      video,
-      (video.videoWidth - size) / 2,
-      (video.videoHeight - size) / 2,
-      size,
-      size,
-      0,
-      0,
-      900,
-      900,
-    );
-    setPhoto(canvas.toDataURL("image/jpeg", 0.88));
-    stopCamera();
-  };
 
   const choosePhoto = async (file?: File) => {
     if (!file) return;
@@ -428,31 +374,7 @@ function GymSnapWorkspace({
               </p>
             </div>
 
-            {cameraOpen ? (
-              <div className="space-y-3">
-                <video
-                  ref={videoRef}
-                  className="aspect-square w-full rounded-md bg-black object-cover"
-                  autoPlay
-                  muted
-                  playsInline
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    className="flex h-12 items-center justify-center gap-2 rounded-md bg-[#b7f34a] font-bold text-black"
-                    onClick={capture}
-                  >
-                    <Camera className="h-5 w-5" /> Capture
-                  </button>
-                  <button
-                    className="flex h-12 items-center justify-center gap-2 rounded-md border border-zinc-700 font-semibold"
-                    onClick={stopCamera}
-                  >
-                    <X className="h-5 w-5" /> Close
-                  </button>
-                </div>
-              </div>
-            ) : photo ? (
+            {photo ? (
               <div className="relative">
                 <img
                   src={photo}
@@ -469,19 +391,22 @@ function GymSnapWorkspace({
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
-                <button
-                  className="flex h-14 items-center justify-center gap-2 rounded-md bg-[#b7f34a] font-bold text-black"
-                  onClick={startCamera}
-                >
+                <label className="flex h-14 cursor-pointer items-center justify-center gap-2 rounded-md bg-[#b7f34a] font-bold text-black">
                   <Camera className="h-5 w-5" /> Camera
-                </button>
+                  <input
+                    className="hidden"
+                    type="file"
+                    accept="image/*"
+                    capture="user"
+                    onChange={(event) => void choosePhoto(event.target.files?.[0])}
+                  />
+                </label>
                 <label className="flex h-14 cursor-pointer items-center justify-center gap-2 rounded-md border border-zinc-700 font-semibold">
                   <Upload className="h-5 w-5" /> Gallery
                   <input
                     className="hidden"
                     type="file"
                     accept="image/*"
-                    capture="user"
                     onChange={(event) => void choosePhoto(event.target.files?.[0])}
                   />
                 </label>
@@ -491,7 +416,7 @@ function GymSnapWorkspace({
         )}
       </div>
 
-      {selected && photo && !cameraOpen && (
+      {selected && photo && (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-800 bg-[#090b0d] p-4">
           <button
             className="mx-auto flex h-14 w-full max-w-3xl items-center justify-center gap-2 rounded-md bg-[#b7f34a] font-black text-black disabled:opacity-60"
