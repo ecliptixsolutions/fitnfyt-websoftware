@@ -23,6 +23,7 @@ import { Route as MemberRouteImport } from './routes/member'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LeadsRouteImport } from './routes/leads'
 import { Route as HardwareRouteImport } from './routes/hardware'
+import { Route as GymsnapRouteImport } from './routes/gymsnap'
 import { Route as FinanceRouteImport } from './routes/finance'
 import { Route as EnrollmentRouteImport } from './routes/enrollment'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -115,6 +116,11 @@ const LeadsRoute = LeadsRouteImport.update({
 const HardwareRoute = HardwareRouteImport.update({
   id: '/hardware',
   path: '/hardware',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GymsnapRoute = GymsnapRouteImport.update({
+  id: '/gymsnap',
+  path: '/gymsnap',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FinanceRoute = FinanceRouteImport.update({
@@ -239,6 +245,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/enrollment': typeof EnrollmentRoute
   '/finance': typeof FinanceRouteWithChildren
+  '/gymsnap': typeof GymsnapRoute
   '/hardware': typeof HardwareRoute
   '/leads': typeof LeadsRouteWithChildren
   '/login': typeof LoginRoute
@@ -277,6 +284,7 @@ export interface FileRoutesByTo {
   '/attendance': typeof AttendanceRoute
   '/dashboard': typeof DashboardRoute
   '/enrollment': typeof EnrollmentRoute
+  '/gymsnap': typeof GymsnapRoute
   '/hardware': typeof HardwareRoute
   '/login': typeof LoginRoute
   '/member': typeof MemberRouteWithChildren
@@ -314,6 +322,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/enrollment': typeof EnrollmentRoute
   '/finance': typeof FinanceRouteWithChildren
+  '/gymsnap': typeof GymsnapRoute
   '/hardware': typeof HardwareRoute
   '/leads': typeof LeadsRouteWithChildren
   '/login': typeof LoginRoute
@@ -355,6 +364,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/enrollment'
     | '/finance'
+    | '/gymsnap'
     | '/hardware'
     | '/leads'
     | '/login'
@@ -393,6 +403,7 @@ export interface FileRouteTypes {
     | '/attendance'
     | '/dashboard'
     | '/enrollment'
+    | '/gymsnap'
     | '/hardware'
     | '/login'
     | '/member'
@@ -429,6 +440,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/enrollment'
     | '/finance'
+    | '/gymsnap'
     | '/hardware'
     | '/leads'
     | '/login'
@@ -469,6 +481,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   EnrollmentRoute: typeof EnrollmentRoute
   FinanceRoute: typeof FinanceRouteWithChildren
+  GymsnapRoute: typeof GymsnapRoute
   HardwareRoute: typeof HardwareRoute
   LeadsRoute: typeof LeadsRouteWithChildren
   LoginRoute: typeof LoginRoute
@@ -583,6 +596,13 @@ declare module '@tanstack/react-router' {
       path: '/hardware'
       fullPath: '/hardware'
       preLoaderRoute: typeof HardwareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gymsnap': {
+      id: '/gymsnap'
+      path: '/gymsnap'
+      fullPath: '/gymsnap'
+      preLoaderRoute: typeof GymsnapRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/finance': {
@@ -834,6 +854,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   EnrollmentRoute: EnrollmentRoute,
   FinanceRoute: FinanceRouteWithChildren,
+  GymsnapRoute: GymsnapRoute,
   HardwareRoute: HardwareRoute,
   LeadsRoute: LeadsRouteWithChildren,
   LoginRoute: LoginRoute,

@@ -120,6 +120,11 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch((error) => console.error(error));
+    }
+  }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <SupabaseBridge />
@@ -128,4 +133,3 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
-

@@ -1,6 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
+  Camera,
   CalendarCheck,
   ChevronRight,
   CircleDollarSign,
@@ -36,6 +37,7 @@ const navItems = [
   { to: "/hardware", label: "Biometric", icon: Cpu },
   { to: "/reader-status", label: "Reader Status", icon: Clock3 },
   { to: "/enrollment", label: "Enrollment", icon: UserRound },
+  { to: "/gymsnap", label: "GymSnap", icon: Camera },
   { to: "/user-access", label: "User Access", icon: KeyRound },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
