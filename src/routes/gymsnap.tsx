@@ -6,6 +6,8 @@ import {
   LogOut,
   RefreshCw,
   Search,
+  Share2,
+  SquarePlus,
   Upload,
   UserRound,
   Users,
@@ -165,8 +167,17 @@ function GymSnapWorkspace({
   const [saving, setSaving] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [installHelpOpen, setInstallHelpOpen] = useState(false);
+  const [installed, setInstalled] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+    setInstalled(standalone);
+  }, []);
 
   const results = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -299,6 +310,19 @@ function GymSnapWorkspace({
     }
   };
 
+  const install = async () => {
+    if (!installPrompt) {
+      setInstallHelpOpen(true);
+      return;
+    }
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    if (choice.outcome === "accepted") {
+      setInstalled(true);
+      onInstalled();
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#090b0d] pb-28 text-white">
       <header className="sticky top-0 z-20 border-b border-zinc-800 bg-[#090b0d]/95 px-4 py-3 backdrop-blur">
@@ -312,20 +336,6 @@ function GymSnapWorkspace({
               {lastSync ? `Synced ${lastSync.toLocaleTimeString()}` : "Connecting..."}
             </p>
           </div>
-          {installPrompt && (
-            <button
-              className="grid h-10 w-10 place-items-center rounded-md border border-zinc-700"
-              aria-label="Install GymSnap"
-              title="Install GymSnap"
-              onClick={async () => {
-                await installPrompt.prompt();
-                await installPrompt.userChoice;
-                onInstalled();
-              }}
-            >
-              <Download className="h-5 w-5" />
-            </button>
-          )}
           <button
             className="grid h-10 w-10 place-items-center rounded-md border border-zinc-700"
             aria-label="Refresh"
@@ -346,6 +356,16 @@ function GymSnapWorkspace({
       </header>
 
       <div className="mx-auto max-w-3xl space-y-5 px-4 py-5">
+        {!installed && (
+          <button
+            className="flex h-14 w-full items-center justify-center gap-2 rounded-md bg-[#b7f34a] font-black text-black"
+            onClick={install}
+          >
+            <Download className="h-5 w-5" />
+            Install GymSnap App
+          </button>
+        )}
+
         <section>
           <div className="relative">
             <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-500" />
@@ -485,6 +505,70 @@ function GymSnapWorkspace({
             )}
             {saving ? "Saving..." : "Save and Send to Device"}
           </button>
+        </div>
+      )}
+
+      {installHelpOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end bg-black/70 p-4 sm:items-center sm:justify-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="install-title"
+        >
+          <section className="w-full max-w-md rounded-md border border-zinc-700 bg-zinc-900 p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 id="install-title" className="text-xl font-black">
+                  Install GymSnap on iPhone
+                </h2>
+                <p className="mt-1 text-sm text-zinc-400">Use Safari for these steps.</p>
+              </div>
+              <button
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-zinc-700"
+                aria-label="Close install instructions"
+                onClick={() => setInstallHelpOpen(false)}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <ol className="mt-6 space-y-4">
+              <li className="flex items-center gap-4">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-sky-500/15 text-sky-400">
+                  <Share2 className="h-6 w-6" />
+                </span>
+                <span className="text-sm">
+                  <strong className="block text-base">1. Tap Share</strong>
+                  Use the Share button at the bottom of Safari.
+                </span>
+              </li>
+              <li className="flex items-center gap-4">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-zinc-800 text-white">
+                  <SquarePlus className="h-6 w-6" />
+                </span>
+                <span className="text-sm">
+                  <strong className="block text-base">2. Add to Home Screen</strong>
+                  Scroll down and tap Add to Home Screen.
+                </span>
+              </li>
+              <li className="flex items-center gap-4">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-[#b7f34a] font-black text-black">
+                  3
+                </span>
+                <span className="text-sm">
+                  <strong className="block text-base">3. Tap Add</strong>
+                  GymSnap will appear with your other apps.
+                </span>
+              </li>
+            </ol>
+
+            <button
+              className="mt-6 h-12 w-full rounded-md bg-[#b7f34a] font-black text-black"
+              onClick={() => setInstallHelpOpen(false)}
+            >
+              Got it
+            </button>
+          </section>
         </div>
       )}
 

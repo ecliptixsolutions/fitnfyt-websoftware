@@ -1,4 +1,4 @@
-const CACHE_NAME = "gymsnap-v1";
+const CACHE_NAME = "gymsnap-v2";
 const APP_SHELL = ["/gymsnap", "/manifest.json", "/icons/icon-192.svg", "/icons/icon-512.svg"];
 
 self.addEventListener("install", (event) => {
