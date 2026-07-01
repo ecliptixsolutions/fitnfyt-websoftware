@@ -179,6 +179,7 @@ function GymSnapWorkspace({
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [installHelpOpen, setInstallHelpOpen] = useState(false);
   const [installed, setInstalled] = useState(false);
+  const photoSizeKb = photo ? Math.ceil(dataUrlByteSize(photo) / 1024) : 0;
 
   useEffect(() => {
     const standalone =
@@ -420,29 +421,34 @@ function GymSnapWorkspace({
             </div>
 
             {photo ? (
-              <div className="relative">
-                <img
-                  src={photo}
-                  alt={`${selected.name} face preview`}
-                  className="aspect-square w-full rounded-md bg-black object-cover"
-                />
-                <button
-                  className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-black/80"
-                  aria-label="Remove photo"
-                  onClick={() => {
-                    setPhoto(null);
-                    setCropSource(null);
-                  }}
-                >
-                  <X className="h-5 w-5" />
-                </button>
-                <button
-                  className="absolute bottom-3 left-1/2 flex h-11 -translate-x-1/2 items-center gap-2 rounded-md bg-black/80 px-4 text-sm font-bold"
-                  onClick={() => setCropOpen(true)}
-                >
-                  <Crop className="h-4 w-4" />
-                  Crop Photo
-                </button>
+              <div className="space-y-2">
+                <div className="relative">
+                  <img
+                    src={photo}
+                    alt={`${selected.name} face preview`}
+                    className="aspect-square w-full rounded-md bg-black object-cover"
+                  />
+                  <button
+                    className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-black/80"
+                    aria-label="Remove photo"
+                    onClick={() => {
+                      setPhoto(null);
+                      setCropSource(null);
+                    }}
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                  <button
+                    className="absolute bottom-3 left-1/2 flex h-11 -translate-x-1/2 items-center gap-2 rounded-md bg-black/80 px-4 text-sm font-bold"
+                    onClick={() => setCropOpen(true)}
+                  >
+                    <Crop className="h-4 w-4" />
+                    Crop Photo
+                  </button>
+                </div>
+                <p className="text-center text-xs font-semibold text-[#b7f34a]">
+                  Ready to upload · {photoSizeKb} KB
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
@@ -733,7 +739,7 @@ async function cropImage(source: string, area: Area, rotation: number) {
     output.width,
     output.height,
   );
-  return output.toDataURL("image/jpeg", 0.9);
+  return compressCanvasUnderLimit(output, 200 * 1024);
 }
 
 function loadImage(source: string) {
@@ -743,4 +749,57 @@ function loadImage(source: string) {
     image.onerror = () => reject(new Error("Image could not be loaded"));
     image.src = source;
   });
+}
+
+async function compressCanvasUnderLimit(source: HTMLCanvasElement, maxBytes: number) {
+  let canvas = source;
+  let quality = 0.9;
+
+  for (let attempt = 0; attempt < 18; attempt += 1) {
+    const blob = await canvasToBlob(canvas, quality);
+    if (blob.size <= maxBytes) return blobToDataUrl(blob);
+
+    if (quality > 0.42) {
+      quality = Math.max(0.42, quality - 0.08);
+      continue;
+    }
+
+    const resized = document.createElement("canvas");
+    resized.width = Math.max(480, Math.round(canvas.width * 0.85));
+    resized.height = Math.max(480, Math.round(canvas.height * 0.85));
+    const context = resized.getContext("2d");
+    if (!context) throw new Error("Compression canvas is unavailable");
+    context.drawImage(canvas, 0, 0, resized.width, resized.height);
+    canvas = resized;
+    quality = 0.72;
+  }
+
+  const finalBlob = await canvasToBlob(canvas, 0.35);
+  if (finalBlob.size > maxBytes) throw new Error("Photo could not be compressed below 200 KB");
+  return blobToDataUrl(finalBlob);
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, quality: number) {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("JPEG compression failed"))),
+      "image/jpeg",
+      quality,
+    );
+  });
+}
+
+function blobToDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+function dataUrlByteSize(dataUrl: string) {
+  const base64 = dataUrl.split(",", 2)[1] ?? "";
+  const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;
+  return Math.max(0, Math.floor((base64.length * 3) / 4) - padding);
 }
