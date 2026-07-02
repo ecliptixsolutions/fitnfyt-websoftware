@@ -230,11 +230,19 @@ function AddMember() {
             className="input-field mt-1"
             value={form.plan}
             onChange={(e) => {
-              set("plan", e.target.value);
-              set("amountPaid", getMembershipPlan(e.target.value).price);
+              const selectedPlan = getMembershipPlan(e.target.value);
+              setForm((current) => ({
+                ...current,
+                plan: selectedPlan.name,
+                amountPaid: selectedPlan.price,
+              }));
             }}
           >
-            {membershipPlans.map((p) => <option key={p.name}>{p.name}</option>)}
+            {membershipPlans.map((p) => (
+              <option key={p.name} value={p.name}>
+                {p.name}
+              </option>
+            ))}
           </select>
         </Field>
         <div className="grid grid-cols-2 gap-3">

@@ -58,6 +58,14 @@ export function getMembershipPlan(name: string) {
 
 export function addPlanMonths(value: string | Date, months: number) {
   const date = new Date(value);
-  date.setMonth(date.getMonth() + months);
+  const originalDay = date.getUTCDate();
+  date.setUTCDate(1);
+  date.setUTCMonth(date.getUTCMonth() + months);
+  const lastDayOfTargetMonth = new Date(Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth() + 1,
+    0,
+  )).getUTCDate();
+  date.setUTCDate(Math.min(originalDay, lastDayOfTargetMonth));
   return date;
 }
