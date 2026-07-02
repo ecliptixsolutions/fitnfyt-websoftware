@@ -63,6 +63,28 @@ export type UploadUserQueueItem = {
   queuedAt?: string;
 };
 
+export type GymSnapPerson = {
+  id: string;
+  name: string;
+  phone: string;
+  type: "member" | "staff";
+  detail: string;
+  branchId?: string;
+};
+
+type GymSnapMemberRow = {
+  id?: unknown;
+  name?: unknown;
+  phone?: unknown;
+  status?: unknown;
+  branch_id?: unknown;
+};
+
+type GymSnapStaffRow = GymSnapMemberRow & {
+  role?: unknown;
+  active?: unknown;
+};
+
 async function requestOptional<T>(
   tableAndQuery: string,
   fallback: T,
@@ -130,7 +152,11 @@ export async function loadSupabaseSnapshot(): Promise<Partial<Snapshot>> {
   const subjectAliases = buildSubjectAliases(hikvisionPeople);
   const attendanceRecords = normalizeAttendanceRecords(
     attendance
-      .filter((row) => new Date(row.punch_in ?? row.created_at ?? row.updated_at ?? 0).getTime() >= CLIENT_CLEANUP_AT)
+      .filter(
+        (row) =>
+          new Date(row.punch_in ?? row.created_at ?? row.updated_at ?? 0).getTime() >=
+          CLIENT_CLEANUP_AT,
+      )
       .map((row) => fromAttendanceRow(row, subjectAliases)),
   );
   const memberRows = members
@@ -183,6 +209,37 @@ export async function loadSupabaseSnapshot(): Promise<Partial<Snapshot>> {
       .filter((device) => !isRetiredBiometricDevice(device)),
     readerConnectionEvents: readerConnectionEvents.map(fromReaderConnectionEventRow),
   };
+}
+
+export async function loadGymSnapPeople(): Promise<GymSnapPerson[]> {
+  if (!enabled) return [];
+  const [members, staff] = await Promise.all([
+    request<GymSnapMemberRow[]>("members?select=id,name,phone,status,branch_id&order=name.asc"),
+    request<GymSnapStaffRow[]>("staff?select=id,name,phone,role,active,branch_id&order=name.asc"),
+  ]);
+
+  return [
+    ...members
+      .filter((row) => row.id && row.name && (row.status ?? "active") !== "inactive")
+      .map((row) => ({
+        id: String(row.id),
+        name: String(row.name),
+        phone: String(row.phone ?? ""),
+        type: "member" as const,
+        detail: "Member",
+        branchId: row.branch_id ? String(row.branch_id) : undefined,
+      })),
+    ...staff
+      .filter((row) => row.id && row.name && row.active !== false)
+      .map((row) => ({
+        id: String(row.id),
+        name: String(row.name),
+        phone: String(row.phone ?? ""),
+        type: "staff" as const,
+        detail: String(row.role || "Staff"),
+        branchId: row.branch_id ? String(row.branch_id) : undefined,
+      })),
+  ].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function deleteMemberFromSupabase(memberId: string) {
